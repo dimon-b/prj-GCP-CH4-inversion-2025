@@ -1,0 +1,56 @@
+## Executables, compiled
+*.exe
+*.out
+*.app
+*.mod
+*.o
+
+## My
+*.png
+inp_dir/
+mdl_dir/
+res_dir/
+sub_GCP/
+inv_dir/
+txt/
+zold/
+.idea/
+cp_pc_a4_gcp21/
+
+## Python
+*.pyc
+
+## Data
+*.txt*
+*.dat
+*.csv
+*.grd
+*.gt3
+*.bin
+*.pkl
+*.gz
+*.nc
+*.dbf
+*.shp
+*.ctl
+*.dif*
+test2222.*
+*.npy
+*.zip
+
+## Inversion
+*runs
+*results2021
+*gmats*
+codeint54/files4run*
+*.data
+*.groups
+*.sources
+control*
+*.log
+*svdout
+
+## Agage
+*.pre
+*.mon
+*.mop
