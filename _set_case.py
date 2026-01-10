@@ -21,15 +21,16 @@ class SetCase():
         # self.site_ratio_lim = 0.0
         # self.air_ratio_lim = 0.0
 
+        # --- others
+        self.fs = 13
+        self.abc = 'abcdefghijklmnopqrstuvwxyz'
+
         # --- const
         self.R = 6371000
 
         # --- initiation
         self.def_path()
 
-        # --- others
-        self.fs = 13
-        self.abc = 'abcdefghijklmnopqrstuvwxyz'
 
     # - path
     def def_path(self):
@@ -44,9 +45,9 @@ class SetCase():
         # - obs
         self.obs_dir = 'D:/OneDrive - 国立大学法人千葉大学/prj_apack/obs/'
 
-        self.obspack_dir = ( self.obs_dir +
-                            'o_orig/ObsPack/obspack_ch4_1_GLOBALVIEWplus_v7.0_2024-10-29/data/txt/')
-        self.wdcggdy_dir = (self.obs_dir + '/o_orig/WDCGG/daily/')
+        # self.obspack_dir = ( self.obs_dir +
+        #                     'o_orig/ObsPack/obspack_ch4_1_GLOBALVIEWplus_v7.0_2024-10-29/data/txt/')
+        self.wdcgg_dir = (self.obs_dir + '/o_orig/WDCGG/')
         self.obsout_dir = '../inv_dir/obs/'
 
         self.sites_f = self.inv_dir + 'obsrvCH4_60sites.txt'
