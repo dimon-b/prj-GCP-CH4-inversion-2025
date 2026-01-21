@@ -11,8 +11,7 @@ import matplotlib as mpl
 
 import c1_conflux_nc
 import c3_obs_files
-
-
+import s0_server
 
 def main():
     # --- settings
@@ -24,22 +23,29 @@ def main():
     if run:
         print('\t\t *-*-* Start c1_conflux_nc *-*-* ');        c1_conflux_nc.CnvFluxNc()
 
+    # --- Convert input fluxes nc -> gt3
+    #     Run FORTRAN f0_fch4_gcp25_nc2gt3_t42.f90
+
+    # --- Forward MIROC4-ACTM
+
     # --- Copy/Create obs file
-    run = 1
+    run = 0
     if run:
         print('\t\t *-*-* Start c3_obs_files *-*-* ');        c3_obs_files.ObsFilesTxt()
 
-    # todo
-    # --- Convert input fluxes nc -> gt3
-    #     print('\t\t *-*-* Start c2_conflux_gt3 *-*-* ');        c2_conflux_gt3.CnvFluxGt3()
+    # --- Run FORTRAN f2_actm_ch4_at_obs_sites.f90
+    # --- Run FORTRAN f3_combch4_obs_actm.f90
+    # --- Run FORTRAN f4_ch4bu_mon_reg_t42.f90
+    # --- Run FORTRAN f5_write_prior_ch4.f90
+    # --- Run FORTRAN digi_filt/main_actmstn.f90
+    # --- Run FORTRAN f7_write_tdi_obsrvCH4dif.f90
 
-    # --- Convert input fluxes nc -> gt3 using FORTRAN
-    # --- Run model with a priori
+    # --- Run invertion
+    #     codeint54
 
-    # # --- Create obsrvCH4_*.nc
-    # run = 1
-    # if run:
-    #     print('\t\t *-*-* Start c3_obsmodel_nc *-*-* ');        c3_obsmodel_nc.ObsModNc()
+    run = 1
+    if run:
+        print('\n\t *-*-*-*-* Start Server *-*-*-*-* '); s0_server.ServerPart()
 
 
     print('\nScript done!')

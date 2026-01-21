@@ -1,0 +1,185 @@
+# -*- coding: utf-8 -*-
+"""
+Created:    21/11/08 17:48
+Project:    GCP/GMB 2025 project [server part]
+@author:    Dmitry Belikov
+"""
+
+import os
+import pandas as pd
+import subprocess
+from pathlib import Path
+
+import _set_case
+
+
+class LossCorr(_set_case.SetCase):
+
+    def __init__(self):
+        super().__init__()
+        self.f_blos = self.lc_dir + 'gcp_burd_'
+        self.f_bldd = self.lc_dir + 'gcp_burd_add_'
+        self.f_outl = self.lc_dir + 'gcp_LC_'
+        # self.f_obss = '../inp_dir/obs_out/obspack/ch4_mlo_surface-flask_1_representative.txt'
+        self.f_obss = '../inv_dir/obs/ch4_spo_surface-flask_1_representative.txt'
+
+        # --- get loss and burden by FORTRAN
+        self.run_fort_burdlos()
+
+        # --- run correction
+        self.clc_lcorr_1ref()
+
+    # --- get loss and burden by FORTRAN
+    def run_fort_burdlos(self):
+
+        # --- Paths
+        source_dir = os.path.abspath("../c_gcpv3_f")
+        fortran_file = os.path.join(source_dir, "s1_ch4_burloss.f90")
+        exe_name = "a.out"
+        exe_path = os.path.join(source_dir, exe_name)
+
+        # --- Remove existing executable
+        if os.path.isfile(exe_path):
+            try:
+                os.remove(exe_path)
+                print(f"Removed existing {exe_path}")
+            except Exception as e:
+                print(f"Warning: could not remove {exe_path}: {e}")
+
+        # --- Compile (IN source_dir)
+        compile_cmd = ["ifort", "-O3", os.path.basename(fortran_file), "-o", exe_name, ]
+
+        print(f"Compiling in {source_dir}")
+        print("Command:", " ".join(compile_cmd))
+
+        try:
+            proc = subprocess.run(compile_cmd,
+                                  cwd=source_dir,
+                                  stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE,
+                                  text=True,
+                                  )
+
+            if proc.returncode != 0:
+                print(proc.stdout)
+                print(proc.stderr)
+                raise RuntimeError("Compilation failed")
+
+            if proc.stderr.strip():
+                print("Compiler warnings:")
+                print(proc.stderr)
+
+            print("Compilation successful")
+
+        except FileNotFoundError:
+            raise RuntimeError("ERROR: ifort not found in PATH")
+        except Exception as e:
+            raise RuntimeError(f"ERROR during compilation: {e}")
+
+        # --- Verify executable
+        if not os.path.isfile(exe_path):
+            raise RuntimeError(f"ERROR: executable not created: {exe_path}")
+
+        # --- Execute (IN source_dir)
+        execute_cmd = [f"./{exe_name}"]
+
+        print(f"Executing in {source_dir}: {' '.join(execute_cmd)}")
+
+        try:
+            proc = subprocess.run(execute_cmd,
+                                  cwd=source_dir,
+                                  stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE,
+                                  text=True,
+                                  )
+
+            print(f"Return code: {proc.returncode}")
+
+            if proc.stderr.strip():
+                print("Runtime stderr:")
+                print(proc.stderr)
+
+            if proc.returncode != 0:
+                raise RuntimeError(f"{exe_name} failed")
+
+            print(f"{exe_name} output:")
+            if proc.stdout.strip():
+                for line in proc.stdout.splitlines():
+                    print(f"\t>> {line}")
+            else:
+                print("\t>> No output")
+
+        except Exception as e:
+            raise RuntimeError(f"ERROR executing {exe_name}: {e}")
+
+        print(f"{exe_name} completed successfully")
+
+    # --- get loss correction coefficient
+    def clc_lcorr_1ref(self):
+
+        # - Read burden/loss data
+        def get_burdloss():
+            fname = self.f_blos + self.tracer + '.txt'
+            try:
+                df_bl = pd.read_csv(fname, sep=r'\s+')
+                # print(df_bl)
+                df_bl['day'] = 31
+                df_bl['month'] = 12
+                df_bl['datetime'] = pd.to_datetime(df_bl[['year', 'month', 'day']])
+                df_bl.set_index('datetime', inplace=True)
+                df_bl['lch4'] = df_bl['loh_'] + df_bl['lcl_'] + df_bl['lod_']
+                df_bl.reset_index(inplace=True)
+                df_bl = df_bl.drop(['year', 'month', 'day', 'loh_', 'lcl_', 'lod_'], axis=1)
+                return df_bl
+            except IOError:
+                print('\t\tFile not found', fname)
+                exit()
+
+        # - Read obs data
+        def get_obs():
+            fname = self.f_obss
+            try:
+                df_ob = pd.read_csv(fname, sep='\t', names=['year', 'month', 'day', 'hour', 'ch4', 'xx', 'yy'])
+                df_ob['ch4'] = df_ob['ch4']  # *1e9
+                df_ob['datetime'] = pd.to_datetime(df_ob[['year', 'month', 'day', 'hour']])
+                df_ob.set_index('datetime', inplace=True)
+                df_ob = df_ob.resample('YE').mean()
+                df_ob.reset_index(inplace=True)
+                df_ob.drop(columns=['month', 'day', 'hour', 'xx', 'yy'], inplace=True)
+
+                # --- add one rec
+                df_ob.loc[len(df_ob.index)] = [pd.Timestamp('2025-12-31'), 2025.0, 1883]
+                print('CH4 obs from', self.f_obss)
+                print(df_ob)
+                return df_ob
+            except IOError:
+                print('\t\tFile not found', fname)
+                exit()
+
+        # =======================================
+        # --- obs
+        df_ob = get_obs()
+        df_ob.rename(columns={'ch4': 'ch4_obs'}, inplace=True)
+
+        # -
+        for jt, trac in enumerate(self.invcases):
+            # - regular tracer
+            self.tracer = trac
+            df_bl = get_burdloss()
+
+            df_rs = pd.merge(df_bl, df_ob, on='datetime')
+            df_rs['d_ch4'] = (df_rs['ch4_1st'] - df_rs['ch4_obs'])
+            df_rs['LC'] = df_rs['d_ch4'] / (df_rs['ch4_1st']) * df_rs['lch4']
+            df_rs['LC_fact'] = (df_rs['lch4'] - df_rs['LC']) / df_rs['lch4']
+            df_rs['bch4_corr'] = df_rs['bch4'] * df_rs['LC_fact']
+            # print(df_rs)
+            # exit()
+
+            # -
+            print('Mean LC, LC_fact, d_ch4, bch4, bch4*LC_fact for', trac,
+                  round(df_rs['LC'].mean(), 2), round(df_rs['LC_fact'].mean(), 4), round(df_rs['d_ch4'].mean(), 4),
+                  round(df_rs['bch4'].mean(), 2), round(df_rs['bch4_corr'].mean(), 2))
+
+            # - to files
+            df_rs[['year', 'LC_fact']].to_csv(self.f_outl + self.tracer + '.txt', sep='\t', index=False, header=True)
+            df_rs.round(4).to_csv(self.f_bldd + self.tracer + '.txt', sep='\t', index=False, header=True)

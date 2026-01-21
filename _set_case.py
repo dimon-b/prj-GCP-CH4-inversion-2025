@@ -5,15 +5,28 @@ Project:    ACTMpack project
 @author:    Dmitry Belikov
 """
 import os
+import calendar
+import math
 from pylab import *
 
 
 # === set class
 class SetCase():
     def __init__(self):
-        # # - period
+        # --- period
         self.yr_s = 1999
-        self.yr_e = 2024
+        self.yr_e = 2025
+        self.years = [self.yr_s, self.yr_e]
+        self.months = calendar.month_abbr[1:]
+        self.nmonth = len(self.months)
+        self.nyear = len(np.arange(self.years[0], self.years[1], 1))
+        self.ntime = self.nyear * self.nmonth
+
+        # --- nc output period
+        self.years_nc = [2000, 2024]
+        self.nyear_nc = len(np.arange(self.years_nc[0], self.years_nc[1]+1, 1))
+
+
         # self.yr_s = 1997
         # self.yr_e = 2022
         #
@@ -24,13 +37,16 @@ class SetCase():
         # --- others
         self.fs = 13
         self.abc = 'abcdefghijklmnopqrstuvwxyz'
+        self.mdays = [16, 15, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16]
+        self.ndays = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+
 
         # --- const
         self.R = 6371000
 
         # --- initiation
         self.def_path()
-
+        self.def_grid()
 
     # - path
     def def_path(self):
@@ -44,20 +60,42 @@ class SetCase():
 
         # - obs
         self.obs_dir = 'D:/OneDrive - 国立大学法人千葉大学/prj_apack/obs/'
-
-        # self.obspack_dir = ( self.obs_dir +
-        #                     'o_orig/ObsPack/obspack_ch4_1_GLOBALVIEWplus_v7.0_2024-10-29/data/txt/')
+        # self.obspack_dir = ( self.obs_dir + 'o_orig/ObsPack/')
         self.wdcgg_dir = (self.obs_dir + '/o_orig/WDCGG/')
         self.obsout_dir = '../inv_dir/obs/'
-
         self.sites_f = self.inv_dir + 'obsrvCH4_60sites.txt'
 
         # - model
         self.mod_dir = 'D:/dbase/ACTM/CH4_t42l67_CYC_JRA3Q_M_250920/'
         self.invq = ['Q03', 'Q04', 'Q05', 'Q06', 'Q07']
+        self.invcases = ['inv1']
+        self.unpcases = ['p30', 'p50', 'p99']
+        self.unxcases = ['ctl', 'ux2', 'ux4']
 
+        # - inv
+        self.icase = 's060'
+        self.work_dir = '../results2025/'
+        self.run_dir = self.work_dir
+        self.lc_dir = self.run_dir + 'losscorr/'
+        self.aprf_dir = self.run_dir + 'priors/'
+        self.pstf_dir = self.run_dir + 'flux2d/'
+        self.nc_dir = self.run_dir + 'nc_out/'
+        # self.nc_dir = 'D:/dbase/fluxes/gcp2025_flux_out/'
+        self.plt_dir = '../plots/'
 
-        # self.plt_dir = '../plots/'
+    #
+    def def_grid(self):
+        self.d1_lons = np.arange(-180 + 0.5, 180, 1)
+        self.d1_nlon = len(self.d1_lons)
+        self.d1_lats = np.arange(-90 + 0.5, 90, 1)
+        self.d1_nlat = len(self.d1_lats)
+
+        dmdeg = 180. / self.d1_nlat
+        r0 = 6371.0e3
+        angle = np.array([(-89.5 + j * dmdeg) * math.pi / 180.0 for j in range(self.d1_nlat)])
+        # self.garia_d1 = math.cos(angle)*(dmdeg*r0*math.pi/180.0)**2
+        self.garia_d1 = np.array([math.cos(x) * (dmdeg * r0 * math.pi / 180.0) ** 2 for x in angle])
+
         # if not os.path.exists(self.plt_dir):
         #     os.makedirs(self.plt_dir)
         # self.all_sts = self.o_post_dir + '_full_all.csv'

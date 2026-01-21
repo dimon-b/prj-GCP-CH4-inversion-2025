@@ -22,90 +22,201 @@ class CnvFluxNc(_set_case.SetCase):
 
     # --- get_inp_flx
     def get_inp_flx(self):
-        path = self.inp_dir + self.inp_flx
-        ds = xr.open_dataset(path, decode_times=False)
-        print(ds)
 
-        # - get lengths
-        ntime = ds.dims["time"]
-        nseason = ds.dims["time_climato"]
+        # --- get_inp_flx
+        def get_inp_flx():
+            path = self.inp_dir + self.inp_flx
+            ds = xr.open_dataset(path, decode_times=False)
+            # with xr.set_options(display_max_rows=200):
+            #     print(ds)
+            return ds
 
-        # - make seasonal variables match the full time axis
-        expanded = {}
-        for v in [v for v in ds.data_vars if "time_climato" in ds[v].dims]:
-            # tile the seasonal data to match the time dimension
-            arr = ds[v]
-            reps = ntime // nseason
-            expanded[v] = xr.DataArray(
-                np.tile(arr.values, (reps, 1, 1)),  # repeat along time axis
-                dims=("time", "lat", "lon"),
-                coords={"time": ds.time, "lat": ds.lat, "lon": ds.lon},
-                attrs=arr.attrs)
+        # --- manage_ds
+        def manage_ds(ds):
+            # - get lengths
+            ntime = ds.sizes["time"]
+            nseason = ds.sizes["time_climato"]
 
-        # - keep the original "time" variables as they are
-        time_vars = {v: ds[v] for v in ds.data_vars if "time" in ds[v].dims}
+            # - make seasonal variables match the full time axis
+            expanded = {}
+            for v in [v for v in ds.data_vars if "time_climato" in ds[v].dims]:
+                # tile the seasonal data to match the time dimension
+                arr = ds[v]
+                reps = ntime // nseason
+                expanded[v] = xr.DataArray(
+                    np.tile(arr.values, (reps, 1, 1)),  # repeat along time axis
+                    dims=("time", "lat", "lon"),
+                    coords={"time": ds.time, "lat": ds.lat, "lon": ds.lon},
+                    attrs=arr.attrs)
 
-        # - join
-        ds_expanded = xr.Dataset({**time_vars, **expanded})
+            # - keep the original "time" variables as they are
+            time_vars = {v: ds[v] for v in ds.data_vars if "time" in ds[v].dims}
 
-        # - add total
-        sum_all = sum([ds_expanded[v] for v in ds_expanded.data_vars])
-        ds_expanded["flux_ch4_total"] = sum_all
+            # - join
+            ds_expanded = xr.Dataset({**time_vars, **expanded})
 
-        # - Make sure time is datetime
-        if not np.issubdtype(ds_expanded.time.dtype, np.datetime64):
-            ds_expanded['time'] = xr.decode_cf(ds_expanded[['time']]).time
+            # - add total and total without soil
+            sum_all = sum([ds_expanded[v] for v in ds_expanded.data_vars])
+            ds_expanded["flux_ch4_total_old"] = sum_all
 
-        # - Compute grid cell area (m²)
-        dlat = np.deg2rad(ds_expanded.lat[1] - ds_expanded.lat[0])
-        dlon = np.deg2rad(ds_expanded.lon[1] - ds_expanded.lon[0])
-        lat_rad = np.deg2rad(ds_expanded.lat)
-        cell_area = (self.R ** 2 * dlat * dlon * np.cos(lat_rad)).broadcast_like(ds_expanded.flux_ch4_soils)
+            SOURCE_VARS = [
+                "flux_ch4_biofuels",
+                "flux_ch4_biomass",
+                "flux_ch4_coal",
+                "flux_ch4_freshwaters",
+                "flux_ch4_geological",
+                "flux_ch4_livestock",
+                "flux_ch4_ocean",
+                "flux_ch4_oilgasind",
+                "flux_ch4_rice",
+                "flux_ch4_termites",
+                "flux_ch4_waste",
+                "flux_ch4_wetlands",
+                # "flux_ch4_soils",
+            ]
 
-        # - check cell_area_total
-        cell_area_total = cell_area.sum(dim=("lat", "lon"))
-        print('')
-        print(f"Check Total Cell Area = {cell_area_total.values[0]:.2e}")
-        print('')
+            # ds_expanded["flux_ch4_total"] = sum(ds_expanded[v] for v in SOURCE_VARS)
+            # ds_expanded["flux_ch4_total_soil0"] = (ds_expanded["flux_ch4_total"] - ds_expanded["flux_ch4_soils"])
 
-        # - Compute seconds per month
-        time = pd.to_datetime(ds_expanded.time.values)
-        days_in_month = time.days_in_month.values
-        seconds_per_month = days_in_month * 24 * 3600
+            ds_expanded["flux_ch4_total_soil0"] = sum(ds_expanded[v] for v in SOURCE_VARS)
+            ds_expanded["flux_ch4_total"] = (ds_expanded["flux_ch4_total_soil0"] + ds_expanded["flux_ch4_soils"])
+            ds_expanded["flux_ch4_total_diff"] = (ds_expanded["flux_ch4_total"] - ds_expanded["flux_ch4_total_soil0"])
 
-        # - print results in table
-        results = []
-        for var in ds_expanded.data_vars:
-            monthly_flux_per_cell = ds_expanded[var] * cell_area * seconds_per_month[:, np.newaxis, np.newaxis]
-            global_monthly_flux = monthly_flux_per_cell.sum(dim=("lat", "lon"))
-            global_annual_Tg = global_monthly_flux.groupby("time.year").sum(dim="time") / 1e9  # convert to Tg/year
-            for year, value in zip(global_annual_Tg.year.values, global_annual_Tg.values):
-                results.append({"variable": var[9:], "year": int(year), "global_annual_Tg": float(value)})
+            # - Make sure time is datetime
+            if not np.issubdtype(ds_expanded.time.dtype, np.datetime64):
+                ds_expanded['time'] = xr.decode_cf(ds_expanded[['time']]).time
 
-        df_all = pd.DataFrame(results)
-        df_table = df_all.pivot(index="year", columns="variable", values="global_annual_Tg")
-        cols = [c for c in df_table.columns if c != "total"] + ["total"]
-        df_table = df_table[cols]
-        print(df_table.round(4))
+            return ds_expanded
+
+        # --- check_total
+        def check_total(ds):
+
+            # ------------------------------------------------------------
+            # 1. Grid-cell area [m2]
+            # ------------------------------------------------------------
+            dlat = np.deg2rad(ds.lat[1] - ds.lat[0])
+            dlon = np.deg2rad(ds.lon[1] - ds.lon[0])
+
+            lat_rad = np.deg2rad(ds.lat)
+
+            cell_area_2d = (self.R ** 2 * dlat * dlon * np.cos(lat_rad))
+
+            cell_area = cell_area_2d.broadcast_like(ds["flux_ch4_wetlands"])
+
+            # --- sanity check: total Earth surface area
+            earth_area = cell_area.isel(time=0).sum(dim=("lat", "lon"))
+            print("")
+            print(f"Check total Earth area = {earth_area.item():.2e} m2")
+            print("Expected ≈ 5.10e14 m2")
+            print("")
+
+            # ------------------------------------------------------------
+            # 2. Seconds per month (time-aware, xarray-safe)
+            # ------------------------------------------------------------
+            time = pd.to_datetime(ds.time.values)
+
+            seconds_per_month = xr.DataArray(
+                time.days_in_month * 24 * 3600,
+                coords={"time": ds.time},
+                dims=("time",),
+                name="seconds_per_month",
+            )
+
+            # ------------------------------------------------------------
+            # 3. Flux variables to integrate
+            # ------------------------------------------------------------
+            FLUX_VARS = [v for v in ds.data_vars if v.startswith("flux_ch4_")]
+
+            # ------------------------------------------------------------
+            # 4. Integration
+            # ------------------------------------------------------------
+            records = []
+
+            for var in FLUX_VARS:
+
+                # kg m-2 s-1 -> kg per month per grid cell
+                monthly_flux = ds[var] * cell_area * seconds_per_month
+
+                # global monthly sum [kg]
+                global_monthly = monthly_flux.sum(dim=("lat", "lon"))
+
+                # annual totals [Tg yr-1]
+                global_annual = (global_monthly.groupby("time.year").sum(dim="time") / 1e9)
+
+                for year, value in zip(global_annual.year.values, global_annual.values):
+                    records.append(
+                        {"year": int(year), "variable": var.replace("flux_ch4_", ""), "Tg_CH4_yr": float(value), })
+
+            # ------------------------------------------------------------
+            # 5. Output table
+            # ------------------------------------------------------------
+            df = pd.DataFrame(records)
+            table = df.pivot(index="year", columns="variable", values="Tg_CH4_yr", )
+
+            # put totals at the end
+            total_cols = [c for c in table.columns if c.lower().startswith("total")]
+            other_cols = [c for c in table.columns if c not in total_cols]
+            table = table[other_cols + total_cols]
+
+            print(table.round(4))
 
         # - write 'flux_ch4_total' to NetCDF
-        ds_expanded_ = ds_expanded.rename({"flux_ch4_total": "fch4"})
+        def write_nc(ds_i):
+            ds_ = ds_i.rename({"flux_ch4_total": "fch4"})
 
-        # Copy full year 2000 → 1999
-        year_1999 = ds_expanded_.sel(time=slice("2000-01", "2000-12"))
-        year_1999 = year_1999.assign_coords(time=pd.date_range("1999-01-01", "1999-12-01", freq="MS")                                                )
+            # Copy full year 2000 → 1999
+            year_1999 = ds_.sel(time=slice("2000-01", "2000-12"))
+            year_1999 = year_1999.assign_coords(time=pd.date_range("1999-01-01", "1999-12-01", freq="MS"))
 
-        # Copy full year 2024 → 2025
-        year_2025 = ds_expanded_.sel(time=slice("2024-01", "2024-12"))
-        year_2025 = year_2025.assign_coords(time=pd.date_range("2025-01-01", "2025-12-01", freq="MS")                                                )
+            # Copy full year 2024 → 2025
+            year_2025 = ds_.sel(time=slice("2024-01", "2024-12"))
+            year_2025 = year_2025.assign_coords(time=pd.date_range("2025-01-01", "2025-12-01", freq="MS"))
 
-        # Concatenate with original dataset and sort by time
-        ds_expanded_ = xr.concat([year_1999, ds_expanded_, year_2025], dim="time").sortby("time")
+            # Concatenate with original dataset and sort by time
+            ds_ = xr.concat([year_1999, ds_, year_2025], dim="time").sortby("time")
 
-        # --- Check time records ---
-        print("Time coverage after expansion:")
-        print(len(ds_expanded_.time.values))
+            # --- Check time records ---
+            print("Time coverage after expansion:")
+            print(len(ds_.time.values))
 
-        # Save to NetCDF
-        ds_expanded_["fch4"].fillna(0.0).to_netcdf(self.out_dir + "gcp25_c1.nc")
+            # Save to NetCDF
+            ds_["fch4"].fillna(0.0).to_netcdf(self.out_dir + "gcp25_c1.nc")
 
+            # Save to grd no soil
+            print(ds_["fch4"])
+            return ds_
+
+        # - write 'flux_ch4_total_soil0' to grd
+        def write_grd(ds_i, outfile, dtype=np.float32):
+            nmon = 12
+
+            da = ds_i["flux_ch4_total_soil0"].transpose("time", "lat", "lon")
+
+            ntime, nlat, nlon = da.shape
+            assert ntime % nmon == 0, "time is not divisible by 12"
+
+            nyear = ntime // nmon
+
+            print('')
+            print(f'Write *.grd for {nyear} years {nyear*12} recs to {outfile} ')
+
+            with open(outfile, "wb") as f:
+                for iy in range(nyear):
+                    for im in range(nmon):
+                        t = iy * nmon + im
+
+                        slab = da.isel(time=t).values.astype(dtype, copy=False)
+
+                        # Fortran safety
+                        slab = np.nan_to_num(slab, nan=0.0)
+
+                        # one direct-access record
+                        f.write(slab.tobytes(order="C"))
+
+        # =======================================
+        ds = get_inp_flx()
+        ds_ = manage_ds(ds)
+        check_total(ds_)
+        ds_nc = write_nc(ds_)
+        outfile = '../results2025/priors/fch4_gcp2025_soil0_inv1.grd'
+        write_grd(ds_nc, outfile, dtype=np.float32)
