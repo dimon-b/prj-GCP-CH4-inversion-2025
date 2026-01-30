@@ -12,7 +12,7 @@ import s3_write_gt3
 import s4_LossCorrP
 import s5_write_nc_tot
 import s6_write_nc_cat
-import s1_write_nc_loss
+import s7_write_nc_loss
 
 class ServerPart(_set_case.SetCase):
 
@@ -32,8 +32,8 @@ class ServerPart(_set_case.SetCase):
             print('\n\t *-*-*-*-* Start s4_LossCorrP *-*-*-*-* ');     s4_LossCorrP.LossCorrPlot()
 
         # --- write total and category nc
-        print('\n\t *-*-*-*-* Start s5_write_nc_tot *-*-*-*-* ');   s5_write_nc_tot.WriteNcTot()
-        # print('\n\t *-*-*-*-* Start s1_write_nc_cat *-*-*-*-* ');   s1_write_nc_cat.WriteNcCat()
+        # print('\n\t *-*-*-*-* Start s5_write_nc_tot *-*-*-*-* ');   s5_write_nc_tot.WriteNcTot()
+        print('\n\t *-*-*-*-* Start s6_write_nc_cat *-*-*-*-* ');   s6_write_nc_cat.WriteNcCat()
 
         # --- write loss for a priori and a posteriori; run s4_ch4_loss.f90
         #print('\n\t *-*-*-*-* Start write nc loss *-*-*-*-* '); s1_write_nc_loss.WriteNcLoss()

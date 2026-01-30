@@ -27,15 +27,10 @@ class WriteNcTot(_set_case.SetCase):
 
     # --- wrt_flux_tot
     def wrt_flux_tot(self):
-
-        print(f'\tRun wrt_flux')
-        print(f'\tApr flux from: {self.aprf_dir}')
-        print(f'\tPst flux from: {self.pstf_dir}')
-
         # --- write_1nc
         def write_1nc(invc, apr, pst):
 
-            fout = self.nc_dir + '/MIROC4-ACTM_totflux_' + invc + 'SURF.nc'
+            fout = self.inv_ncd_dir + '/MIROC4-ACTM_totflux_' + invc + 'SURF.nc'
             nc = netCDF4.Dataset(fout, 'w', format='NETCDF4')
             nc.description = 'Net prior and posteor CH4 emissions resulted from the surface based inversion for GCP-CH4, 2025. The results are produced at JAMSTEC, Japan. For details please contact at prabir@jamstec.go.jp and d.belikov@chiba-u.jp.'
             nc.Institution = 'Japan Agency for Marine-Earth Science and Technology (JAMSTEC)'
@@ -116,9 +111,13 @@ class WriteNcTot(_set_case.SetCase):
                 ln1 = [self.years_nc[0] + yr] + ln1 + [round(ln1[1] - ln1[0], 2)]
                 df_stt.loc[len(df_stt), :] = ln1
             print(df_stt)
-            df_stt.to_csv(self.nc_dir + 'budget_ch4_gcp25_tot_' + invc + '.txt', sep='\t', index=False)
+            df_stt.to_csv(self.inv_ncd_dir + 'budget_ch4_gcp25_tot_' + invc + '.txt', sep='\t', index=False)
 
         # ===========================================================
+        print(f'\tRun wrt_flux')
+        print(f'\tApr flux from: {self.inv_apr_dir}')
+        print(f'\tPst flux from: {self.inv_pst_dir}')
+
         self.apr_flx_set, self.pst_flx_set = self.get_gcp_flx(self.unp, self.unx, 1)
         for j1, invc in enumerate(self.invcases[0:]):
             apr = self.apr_flx_set[j1]
@@ -148,7 +147,7 @@ class WriteNcTot(_set_case.SetCase):
                     flx1[yr, mn, :, :] = flx[yr, mn, :, :] / ndys / 86400.0
             return flx1
 
-        # - flux shape correction
+        # - flux shape correction [yr, mn, :, :] -> [time, :, :] and scale to monthly
         def cor_shape(flx):
             flx1 = np.zeros([self.nyear_nc * self.nmonth, self.d1_nlat, self.d1_nlon])
             for yr in np.arange(self.nyear_nc):
@@ -158,7 +157,7 @@ class WriteNcTot(_set_case.SetCase):
                     flx1[ss, :, :] = flx[yr, mn, :, :] * 1000 * 86400 * self.ndays[mn]
             return flx1
 
-        # - flux shape correction: 2000-2020 -> 2001-2021
+        # - flux shape correction: [yr_s : yr_f] -> [yr_s + 1 : yr_f + 1]
         def cor_shape_2(flx):
             flx1 = np.zeros([self.nyear_nc * self.nmonth, self.d1_nlat, self.d1_nlon])
             ss1 = 0
@@ -175,10 +174,11 @@ class WriteNcTot(_set_case.SetCase):
                 flx1[:, mn, :, :] = flx[:, mn, :, :] * 1000 * 86400 * self.ndays[mn]
             return flx1
 
+        # ===========================================================
         # - apr
         apr_flx_set = []
         for j1, fl in enumerate(self.flxcases):
-            i_file = self.aprf_dir + fl + '.grd'
+            i_file = self.inv_apr_dir + fl + '.grd'
             skp_y = 1
             print('\tPrior     flux reading: ', fl, i_file, skp_y)
             flx = read_flx_bin(i_file, skp_y)
@@ -192,7 +192,7 @@ class WriteNcTot(_set_case.SetCase):
         # - post
         pst_flx_set = []
         for fl in self.invcases:
-            i_file = self.pstf_dir + unp + '/' + self.icase + '_' + unx + '_' + fl + '.grd'
+            i_file = self.inv_pst_dir + unp + '/' + self.icase + '_' + unx + '_' + fl + '.grd'
             skp_y = 1
             print('\tPosterior flux reading: ', fl, i_file, skp_y)
             flx = read_flx_bin(i_file, skp_y)

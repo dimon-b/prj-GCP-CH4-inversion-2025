@@ -24,15 +24,7 @@ class SetCase():
 
         # --- nc output period
         self.years_nc = [2000, 2024]
-        self.nyear_nc = len(np.arange(self.years_nc[0], self.years_nc[1]+1, 1))
-
-
-        # self.yr_s = 1997
-        # self.yr_e = 2022
-        #
-        # # - obs quality
-        # self.site_ratio_lim = 0.0
-        # self.air_ratio_lim = 0.0
+        self.nyear_nc = len(np.arange(self.years_nc[0], self.years_nc[1] + 1, 1))
 
         # --- others
         self.fs = 13
@@ -40,20 +32,25 @@ class SetCase():
         self.mdays = [16, 15, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16]
         self.ndays = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
-
         # --- const
         self.R = 6371000
 
         # --- initiation
         self.def_path()
         self.def_grid()
+        # todo
+        # self.def_model()
 
     # - path
     def def_path(self):
-        # - fluxes
-        self.inp_dir = 'D:/dbase/fluxes/gcp2025_flux_inp/'
-        self.out_dir = 'D:/dbase/fluxes/gcp2025_flux_out/'
-        self.inp_flx = 'GCP_Prior_CH4_fluxes.nc'
+        # - inp fluxes
+        self.flx_inp_dir = 'D:/dbase/fluxes/gcp2025_flux_inp/'
+        self.flx_inp_nc = 'GCP_Prior_CH4_fluxes.nc'
+
+        # - prior fluxes
+        self.flx_apr_dir = 'D:/dbase/fluxes/gcp2025_flux_prior/'
+        self.flx_apr_nc = "gcp25_inv1.nc"            # total only to convert to gt3
+        self.flx_apr_nc_full = "gcp25_inv1_full.nc"  # full components
 
         # - inv dirs
         self.inv_dir = '../inv_dir/'
@@ -61,7 +58,7 @@ class SetCase():
         # - obs
         self.obs_dir = 'D:/OneDrive - 国立大学法人千葉大学/prj_apack/obs/'
         # self.obspack_dir = ( self.obs_dir + 'o_orig/ObsPack/')
-        self.wdcgg_dir = (self.obs_dir + '/o_orig/WDCGG/')
+        self.wdcgg_dir = self.obs_dir + '/o_orig/WDCGG/'
         self.obsout_dir = '../inv_dir/obs/'
         self.sites_f = self.inv_dir + 'obsrvCH4_60sites.txt'
 
@@ -74,14 +71,14 @@ class SetCase():
 
         # - inv
         self.icase = 's060'
-        self.work_dir = '../results2025/'
-        self.run_dir = self.work_dir
-        self.lc_dir = self.run_dir + 'losscorr/'
-        self.aprf_dir = self.run_dir + 'priors/'
-        self.pstf_dir = self.run_dir + 'flux2d/'
-        self.nc_dir = self.run_dir + 'nc_out/'
-        # self.nc_dir = 'D:/dbase/fluxes/gcp2025_flux_out/'
+        self.inv_wrk_dir = '../results2025/'
+        self.inv_run_dir = self.inv_wrk_dir
+        self.inv_lss_dir = self.inv_run_dir + 'losscorr/'
+        self.inv_apr_dir = self.inv_run_dir + 'priors/'
+        self.inv_pst_dir = self.inv_run_dir + 'flux2d/'
+        self.inv_ncd_dir = self.inv_run_dir + 'nc_out/'
         self.plt_dir = '../plots/'
+        self.inv_apr_grd = self.inv_apr_dir + 'fch4_gcp2025_prior_inv1.grd'
 
     #
     def def_grid(self):

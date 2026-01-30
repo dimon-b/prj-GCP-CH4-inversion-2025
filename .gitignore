@@ -4,6 +4,7 @@
 *.app
 *.mod
 *.o
+*.f
 
 ## My
 *.png

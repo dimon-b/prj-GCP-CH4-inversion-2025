@@ -19,7 +19,7 @@ class ObsFilesTxt(_set_case.SetCase):
         super().__init__()
 
         print('Read Obs from dir: ')
-        print('\t\t', self.inp_dir)
+        print('\t\t', self.flx_inp_dir)
 
         # ---
         # self.get_obs_files_obspack()

@@ -18,8 +18,8 @@ class LossCorrPlot(_set_case.SetCase):
         super().__init__()
 
         self.fs = 10
-        self.f_cgt = self.pstf_dir + 'check_GT_'
-        self.f_bldd = self.lc_dir + 'gcp_burd_add_'
+        self.f_cgt = self.inv_pst_dir + 'check_GT_'
+        self.f_bldd = self.inv_lss_dir + 'gcp_burd_add_'
 
         # --- get loss and burden plots
         self.run_GTLLC()

@@ -18,7 +18,7 @@ class ObsModNc(_set_case.SetCase):
         super().__init__()
 
         print('Read Input Fluxes from dir: ')
-        print('\t\t', self.inp_dir)
+        print('\t\t', self.flx_inp_dir)
 
         # ---
         self.get_obs_model_nc()
