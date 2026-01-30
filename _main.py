@@ -12,6 +12,7 @@ import matplotlib as mpl
 import c1_conflux_nc
 import c3_obs_files
 import s0_server
+import t0_submit
 
 def main():
     # --- settings
@@ -43,9 +44,13 @@ def main():
     # --- Run invertion
     #     codeint54
 
+    run = 0
+    if run:
+        print('\n\t *-*-*-*-* Start Server *-*-*-*-* ');     s0_server.ServerPart()
+
     run = 1
     if run:
-        print('\n\t *-*-*-*-* Start Server *-*-*-*-* '); s0_server.ServerPart()
+        print('\n\t *-*-*-*-* Start Submission *-*-*-*-* '); t0_submit.Write2Submit()
 
 
     print('\nScript done!')
