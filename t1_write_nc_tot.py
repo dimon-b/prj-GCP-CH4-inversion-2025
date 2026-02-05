@@ -8,8 +8,9 @@ from datetime import datetime
 import netCDF4
 import numpy as np
 import pandas as pd
-from netCDF4 import date2num
+import matplotlib.pyplot as plt
 import xarray as xr
+import re
 
 import _set_case
 
@@ -64,6 +65,8 @@ class WriteNcTot(_set_case.SetCase):
             def get_prior_full_nc():
                 path = self.flx_apr_dir + self.flx_apr_nc_full
                 ds = xr.open_dataset(path, decode_times=False)
+                # print(ds)
+                # exit()
                 return ds
 
             ds = get_prior_full_nc()
@@ -78,7 +81,8 @@ class WriteNcTot(_set_case.SetCase):
             pst_ext = np.concatenate([pst[:12], pst, pst[-12:], ], axis=0, )
 
             # - pst_ext into a DataArray
-            pst_da = xr.DataArray(pst_ext, dims=apr_soil.dims, coords=apr_soil.coords, name="pst")
+            pst_da = xr.DataArray(xr.where(pst_ext < 0, 0.0, pst_ext), dims=apr_soil.dims, coords=apr_soil.coords,
+                                  name="pst")
             assert pst_da.shape == apr_soil.shape
             assert pst_da.time.equals(apr_soil.time)
 
@@ -97,6 +101,134 @@ class WriteNcTot(_set_case.SetCase):
 
         # - check_total
         def check_total(ds):
+            # - Grid-cell area [m2]
+            dlat = np.deg2rad(ds.lat[1] - ds.lat[0])
+            dlon = np.deg2rad(ds.lon[1] - ds.lon[0])
+            lat_rad = np.deg2rad(ds.lat)
+
+            cell_area_2d = self.R ** 2 * dlat * dlon * np.cos(lat_rad)
+            cell_area = cell_area_2d.broadcast_like(ds["fch4_prior"])
+
+            # - Sanity check: total Earth surface area
+            earth_area = cell_area.isel(time=0).sum(dim=("lat", "lon"))
+            print("")
+            print(f"Check total Earth area = {earth_area.item():.2e} m2")
+            print("Expected ≈ 5.10e14 m2")
+            print("")
+
+            # - Seconds per month [s]
+            time = pd.to_datetime(ds.time.values)
+
+            ds["seconds_per_month"] = xr.DataArray(time.days_in_month * 24 * 3600,
+                                                   coords={"time": ds.time},
+                                                   dims=("time",),
+                                                   name="seconds_per_month",
+                                                   )
+
+            ds["seconds_per_month"].attrs.update(units="s",
+                                                 description="Number of seconds in each month",
+                                                 )
+
+            # - Time since epoch [hours since 1970-01-01 00:00:00]
+            epoch = pd.Timestamp("1970-01-01 00:00:00")
+
+            ds["time_hours_since_1970"] = xr.DataArray((time - epoch) / pd.Timedelta(hours=1),
+                                                       coords={"time": ds.time},
+                                                       dims=("time",),
+                                                       name="time_hours_since_1970",
+                                                       )
+
+            ds["time_hours_since_1970"].attrs.update(units="hours since 1970-01-01 00:00:00",
+                                                     description="Time coordinate expressed as hours since Unix epoch",
+                                                     )
+
+            # - Flux variables to integrate
+            FLUX_VARS = [v for v in ds.data_vars if v.startswith("fch4_")]
+
+            records = []
+
+            for var in FLUX_VARS:
+                # - Monthly flux (time integration only) [kg m-2]
+                out_name = f"monthly_{var}"
+                ds[out_name] = ds[var] * ds["seconds_per_month"]
+                ds[out_name].attrs.update(units="kg m-2", description=f"Monthly integrated flux from {var}",
+                                          )
+
+                # - Global monthly total [kg]
+                monthly_global = (ds[out_name] * cell_area).sum(dim=("lat", "lon"))
+                # - Global annual total [Tg yr-1]
+                annual_global = (monthly_global.groupby("time.year").sum(dim="time") / 1e9)
+
+                for year, value in zip(annual_global.year.values, annual_global.values):
+                    records.append({"year": int(year),
+                                    "variable": var.replace("fch4_", ""),
+                                    "Tg_CH4_yr": float(value),
+                                    })
+
+            # - Output table
+            df = pd.DataFrame(records)
+
+            table = df.pivot(index="year", columns="variable", values="Tg_CH4_yr", )
+
+            # - Put totals at the end
+            total_cols = [c for c in table.columns if c.lower().startswith("total")]
+            other_cols = [c for c in table.columns if c not in total_cols]
+            table = table[other_cols + total_cols]
+
+            print(table.round(4))
+
+            def plot_fluxes_and_corr(table):
+                # - Flux columns (left axis)
+                flux_cols = ["post", "post_soil0", "prior", "prior_soil0"]
+
+                # - Figure
+                fig, ax1 = plt.subplots(figsize=(9, 5))
+
+                # - Flux time series
+                table[flux_cols].plot(ax=ax1, marker="o")
+                ax1.set_xlabel("Year")
+                ax1.set_ylabel("Total fluxes, (Tg CH4 yr⁻¹)")
+                ax1.grid(True)
+                ax1.set_ylim(450, 650)
+
+                # - Correction axis
+                ax2 = ax1.twinx()
+                ax2.set_ylabel("Correction, soil (Tg CH4 yr⁻¹)")
+                ax2.set_ylim(-60, 60)
+
+                # - Correction
+                ax2.plot(table.index,
+                         table["corr"],
+                         linestyle="--",
+                         linewidth=2,
+                         label="Correction",
+                         )
+
+                # - Optional soils series (if present)
+                if "soils" in table.columns:
+                    ax2.plot(table.index,
+                             table["soils"],
+                             linestyle=":",
+                             linewidth=2,
+                             label="soils",
+                             )
+
+                # - Combined legend
+                lines1, labels1 = ax1.get_legend_handles_labels()
+                lines2, labels2 = ax2.get_legend_handles_labels()
+                ax1.legend(lines1 + lines2,
+                           labels1 + labels2, ncol=3,
+                           loc="lower right",
+                           )
+
+                plt.tight_layout()
+                plt.show()
+
+            # plot_fluxes_and_corr(table)
+
+            return ds
+
+        def check_total_0(ds):
 
             # - Grid-cell area [m2]
             dlat = np.deg2rad(ds.lat[1] - ds.lat[0])
@@ -105,7 +237,7 @@ class WriteNcTot(_set_case.SetCase):
             cell_area_2d = (self.R ** 2 * dlat * dlon * np.cos(lat_rad))
             cell_area = cell_area_2d.broadcast_like(ds["fch4_prior"])
 
-            # - sanity check: total Earth surface area
+            # - Sanity check: total Earth surface area
             earth_area = cell_area.isel(time=0).sum(dim=("lat", "lon"))
             print("")
             print(f"Check total Earth area = {earth_area.item():.2e} m2")
@@ -117,8 +249,7 @@ class WriteNcTot(_set_case.SetCase):
             seconds_per_month = xr.DataArray(time.days_in_month * 24 * 3600,
                                              coords={"time": ds.time},
                                              dims=("time",),
-                                             name="seconds_per_month",
-                                             )
+                                             name="seconds_per_month")
 
             # - Flux variables to integrate
             FLUX_VARS = [v for v in ds.data_vars if v.startswith("fch4_")]
@@ -148,9 +279,9 @@ class WriteNcTot(_set_case.SetCase):
             print(table.round(4))
 
         # - write_1nc
-        def write_1nc(invc, apr, pst):
+        def write_post_total(invc, ds_):
 
-            fout = self.inv_ncd_dir + '/MIROC4-ACTM_totflux_' + invc + 'SURF.nc'
+            fout = self.inv_ncd_dir + '/MIROC4-ACTM_totflux_GMB_SURF_OH_Transcom.nc'
             nc = netCDF4.Dataset(fout, 'w', format='NETCDF4')
             nc.description = 'Net prior and posteor CH4 emissions resulted from the surface based inversion for GCP-CH4, 2025. The results are produced at JAMSTEC, Japan. For details please contact at prabir@jamstec.go.jp and d.belikov@chiba-u.jp.'
             nc.Institution = 'Japan Agency for Marine-Earth Science and Technology (JAMSTEC)'
@@ -163,7 +294,6 @@ class WriteNcTot(_set_case.SetCase):
             time_dim = nc.createDimension('time', None)
             lat_dim = nc.createDimension('lat', self.d1_nlat)
             lon_dim = nc.createDimension('lon', self.d1_nlon)
-            # carea = nc.createDimension('carea', self.d1_nlat)
 
             # --- set variables
             time = nc.createVariable('time', 'f4', ('time',))
@@ -183,20 +313,11 @@ class WriteNcTot(_set_case.SetCase):
             lat[:] = self.d1_lats
             lon[:] = self.d1_lons
             cellarea[:] = self.garia_d1
-            prior[:, :, :] = apr[:, :, :]
-            post[:, :, :] = pst[:, :, :]
-
-            # --- check G-total
-            nms = ['apr', 'pst']
-            vrs = [apr, pst]
+            prior[:, :, :] = ds_['monthly_fch4_prior_soil0'].values
+            post[:, :, :] = ds_['monthly_fch4_post_soil0'].values
 
             # --- date-time
-            dd = []
-            for ym in np.arange(self.years_nc[0], self.years_nc[1] + 1, 1):
-                for mm in np.arange(1, 13, 1):
-                    dd.append(datetime(int(ym), int(mm), int(self.mdays[mm - 1])))
-            dt = date2num(dd, units=time.units, calendar=time.calendar)
-            time[:] = dt[:]
+            time[:] = ds_["time_hours_since_1970"]
 
             # --- units
             cellarea.units = 'm2'
@@ -205,8 +326,84 @@ class WriteNcTot(_set_case.SetCase):
             prior.valid_range = np.array((np.min(prior), np.max(prior)))
             post.valid_range = np.array((np.min(post), np.max(post)))
 
-            print('*** SUCCESS writing for ', invc)
+            print('*** SUCCESS writing for ', invc, fout)
+            print(prior.valid_range)
+            print(post.valid_range)
             nc.close()
+
+        # - write_post_categ
+        def write_post_categ(flx_prior_, flx_join_):
+
+            flx_prior = flx_prior_.copy()
+            flx_join = flx_join_.copy()
+            print(flx_prior)
+
+            # - Harmonize time coordinate
+            if flx_join.time.dtype != flx_prior.time.dtype:
+                flx_join = flx_join.assign_coords(time=flx_prior.time)
+
+            # - Detect categories
+            cat_pattern = re.compile(r"^flux_ch4_(.+)$")
+            CATEGORIES = sorted([m.group(1)
+                                 for v in flx_prior.data_vars
+                                 if (m := cat_pattern.match(v)) and m.group(1) not in ["tot", "prior", "prior_soil0"]
+                                 ])
+
+            if not CATEGORIES:
+                raise RuntimeError("No flux_ch4_<cat> variables detected")
+
+            print("Detected categories:")
+            for c in CATEGORIES:
+                print(f"  - {c}")
+
+            # - Totals
+            f_tot_prior = flx_prior["flux_ch4_prior_soil0"]
+            f_tot_post = flx_join["fch4_post_soil0"]
+
+            # - Protect against division by zero
+            f_tot_prior_safe = xr.where(np.abs(f_tot_prior) > 1e-3,
+                                        f_tot_prior,
+                                        np.nan,
+                                        )
+
+            # - Init output dataset
+            ds_out = xr.Dataset(coords=flx_join.coords)
+
+            ds_out["fch4_tot_prior"] = f_tot_prior
+            ds_out["fch4_tot_post"] = f_tot_post
+
+            # - Copy PRIOR categories
+            for cat in CATEGORIES:
+                ds_out[f"fch4_{cat}_prior"] = flx_prior[f"flux_ch4_{cat}"]
+
+            # - Redistribute POSTERIOR categories
+            print("\nProcessing categories:")
+            for cat in CATEGORIES:
+                print(f"  - {cat}")
+                ratio = flx_prior[f"flux_ch4_{cat}"] / f_tot_prior_safe
+                ds_out[f"fch4_{cat}_post"] = f_tot_post * ratio
+
+            # - Mass conservation check
+            post_stack = xr.concat([ds_out[f"fch4_{c}_post"] for c in CATEGORIES], dim="category")
+            sum_post = post_stack.sum("category", skipna=True)
+            imbalance = sum_post - ds_out["fch4_tot_post"]
+            mean_imb = float(imbalance.mean(skipna=True))
+            max_imb = float(np.abs(imbalance).max(skipna=True))
+
+            sum_post = sum(ds_out[f"fch4_{c}_post"] for c in CATEGORIES)
+            imbalance = sum_post - ds_out["fch4_tot_post"]
+            mean_imb = float(imbalance.mean(skipna=True))
+            max_imb = float(np.abs(imbalance).max(skipna=True))
+
+            print("\nMass conservation check:")
+            print(f"  Mean imbalance : {mean_imb:.3e}")
+            print(f"  Max  imbalance : {max_imb:.3e}")
+
+            tol = 1e-6
+            if max_imb > tol:
+                print("WARNING: mass conservation tolerance exceeded")
+
+            return ds_out
 
         # ===========================================================
         print(f'\tRun wrt_flux_cat')
@@ -218,6 +415,12 @@ class WriteNcTot(_set_case.SetCase):
             flx_prior = get_prior_full_flx_nc()
             flx_post = get_post_flx_grd(self.unp, self.unx, invc)
             flx_join = get_joined_apr2post(flx_prior, flx_post)
-            check_total(flx_join)
-            # todo
-            write_1nc()
+
+            # - to write total
+            # ds = flx_join.sel(time=slice(f"{self.years_nc[0]}-01-01",
+            #                              f"{self.years_nc[1]}-12-31"))
+            # ds_ = check_total(ds)
+            # write_post_total(invc, ds_)
+
+            # - to write categ
+            write_post_categ(flx_prior, flx_join)
