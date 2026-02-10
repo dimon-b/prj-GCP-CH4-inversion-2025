@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created/Corrected:    25/09/09 09:09
+Finalized:  26/xx/xx
 Project:    GCP/GMB 2025 project
 @author:    Dmitry Belikov
 """

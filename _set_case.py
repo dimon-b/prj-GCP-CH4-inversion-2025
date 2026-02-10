@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Created/Corrected:    25/07/16 16:54
-Project:    ACTMpack project
+Finalized:  26/xx/xx
+Project:    GCP/GMB 2025 project
 @author:    Dmitry Belikov
 """
 import os
@@ -45,15 +45,22 @@ class SetCase():
     def def_path(self):
         # - inp fluxes
         self.flx_inp_dir = 'D:/dbase/fluxes/gcp2025_flux_inp/'
+        self.flx_inp_dir = '/S/data01/G5070/y0715/prj_GCP_v3/fluxes/gcp2025_flux_inp/'
         self.flx_inp_nc = 'GCP_Prior_CH4_fluxes.nc'
 
         # - prior fluxes
         self.flx_apr_dir = 'D:/dbase/fluxes/gcp2025_flux_prior/'
-        self.flx_apr_nc = "gcp25_inv1.nc"            # total only to convert to gt3
+        self.flx_apr_nc = "gcp25_inv1.nc"  # total only to convert to gt3
         self.flx_apr_nc_full = "gcp25_inv1_full.nc"  # full components
 
         # - inv dirs
         self.inv_dir = '../inv_dir/'
+
+        # -
+        self.inc_OH_inp_dir = 'D:/dbase/fluxes/gcp2025_flux_inp/LOSS_FIELDS/OH_INCA/Scaled/'
+        self.inc_OH_dir = 'D:/dbase/fluxes/gcp2025_OH/'
+
+        # self.inc_OH_inp_dir = '/S/data01/G5070/y0715/prj_GCP_v3/fluxes/gcp2025_flux_inp/LOSS_FIELDS/OH_INCA/Scaled'
 
         # - obs
         self.obs_dir = 'D:/OneDrive - 国立大学法人千葉大学/prj_apack/obs/'
@@ -79,6 +86,22 @@ class SetCase():
         self.inv_ncd_dir = self.inv_run_dir + 'nc_out/'
         self.plt_dir = '../plots/'
         self.inv_apr_grd = self.inv_apr_dir + 'fch4_gcp2025_prior_inv1.grd'
+
+        # - concentration
+        self.conc_cases = [('pri_cyc', 'D:/dbase/ACTM_OH/run_ES4/CH4_t42l67_CYC_prior_M_240705/'),
+                           ('pri_iav', 'D:/dbase/ACTM_OH/run_ES4/CH4_t42l67_IAV_prior_M_240707/'),
+                           ('pst_cyc', 'D:/dbase/ACTM_OH/run_Oak/GWG_ch4gcp_OH-clm/'),
+                           ('pst_iav', 'D:/dbase/ACTM_OH/run_Oak/GWG_ch4gcp_OH-iav/')
+                           ]
+
+        self.conc_cases = [('pri_gcp', 'D:/dbase/ACTM/CH4_t42l67_CYC_JRA3Q_M_260115/'),
+                           ('pst_gcp', 'D:/dbase/ACTM/CH4_t42l67_CYC_JRA3Q_M_260131_post/'),
+                           ]
+
+        # self.set_dirs = [['D:/dbase/ACTM_OH/run_ES4/CH4_t42l67_CYC_prior_M_240705/',
+        #                  'D:/dbase/ACTM_OH/run_ES4/CH4_t42l67_IAV_prior_M_240707/'],
+        #                  ['D:/dbase/ACTM_OH/run_Oak/GWG_ch4gcp_OH-clm/',
+        #                  'D:/dbase/ACTM_OH/run_Oak/GWG_ch4gcp_OH-iav/']]
 
     #
     def def_grid(self):

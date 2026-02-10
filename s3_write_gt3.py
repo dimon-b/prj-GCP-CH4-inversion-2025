@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Created:    21/11/08 17:48
-Project:    GCP-21
+Finalized:  26/xx/xx
+Project:    GCP/GMB 2025 project
 @author:    Dmitry Belikov
 """
 
