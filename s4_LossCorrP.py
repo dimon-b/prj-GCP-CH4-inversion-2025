@@ -41,7 +41,7 @@ class LossCorrPlot(_set_case.SetCase):
                 df_x = df_gt.loc[df_gt['invc'] == inv]
 
                 # --- combined fluxes
-                ax[0].plot(df_x['year'], df_x['flux'], color=colors[j], linestyle='--', label=inv + ' prior')
+                ax[0].plot(df_x['year'], df_x['prior'], color=colors[j], linestyle='--', label=inv + ' prior')
                 ax[0].plot(df_x['year'], df_x['post'], color=colors[j], linestyle=':', label=inv + ' post')
                 ax[0].plot(df_x['year'], df_x['post*lc_f'], color=colors[j], linestyle='-', label=inv + ' post×LC')
                 ax[1].plot(df_x['year'], df_x['flxc'], color=colors[j], linestyle=':', label=inv + ' LC')

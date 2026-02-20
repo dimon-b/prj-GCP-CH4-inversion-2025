@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from pathlib import Path
+import matplotlib.pyplot as plt
 
 import _set_case
 
@@ -28,9 +29,64 @@ class CnvOHNc(_set_case.SetCase):
         self.inca_final_file = self.inc_OH_dir + f"tch4_INCA_OH_t42.nc"
 
         # ---
-        self.get_inca_OH()
+        # self.get_inca_OH()
 
-    # --- get_inp_flx
+        # ---
+        self.check_inca_OH()
+
+    # --- check inca OH
+    def check_inca_OH(self):
+        # Open datasets
+        ds_actm = xr.open_dataset(self.actm_OH_IAV, decode_times=False)
+        start_date = "1980-01-01"
+        new_time = pd.date_range(start=start_date, periods=ds_actm.sizes["time"], freq="MS")
+        ds_actm = ds_actm.assign_coords(time=new_time)
+
+        ds_inca = xr.open_dataset(self.inca_final_file)
+
+        print(ds_actm["level"])
+        # print(ds_inca)
+
+        # Pick OH variable (change name if needed)
+        oh_actm = ds_actm["NDOH"]
+        oh_inca = ds_inca["OH"]
+
+        MLO_LAT, MLO_LON = 19.54, -155.58+360  # Mauna Loa
+        t_lev = 0.77
+
+        # Select South Pole and North Pole (nearest grid point)
+        oh_actm_SP = oh_actm.sel(level=t_lev, y=-90, method="nearest").mean(dim=("x"))
+        oh_actm_NP = oh_actm.sel(level=t_lev, y=90, method="nearest").mean(dim=("x"))
+        oh_actm_MLO = oh_actm.sel(level=t_lev,y=MLO_LAT, x=MLO_LON, method="nearest")
+
+        oh_inca_SP = oh_inca.sel(level=t_lev, y=-90, method="nearest").mean(dim=("x"))
+        oh_inca_NP = oh_inca.sel(level=t_lev, y=90, method="nearest").mean(dim=("x"))
+        oh_inca_MLO = oh_inca.sel(level=t_lev,y=MLO_LAT, x=MLO_LON, method="nearest")
+
+        # Plot
+        plt.figure(figsize=(8, 5))
+
+        plt.plot(oh_actm["time"], oh_actm_SP, label="ACTM SP", color="r")
+        plt.plot(oh_actm["time"], oh_actm_MLO, label="ACTM MLO", color="g")
+        plt.plot(oh_actm["time"], oh_actm_NP, label="ACTM NP", color="b")
+
+        plt.plot(oh_inca["time"], oh_inca_SP, label="INCA SP", color="r", linestyle="--")
+        plt.plot(oh_inca["time"], oh_inca_MLO, label="INCA MLO", color="g", linestyle="--")
+        plt.plot(oh_inca["time"], oh_inca_NP, label="INCA NP", color="b", linestyle="--")
+
+        plt.xlabel("")
+        plt.ylabel("OH concentration")
+        plt.title("OH Timeseries")
+        plt.xlim(pd.Timestamp("2000-01-01"), pd.Timestamp("2005-12-31"))
+        plt.legend()
+        plt.grid(True)
+        plt.tight_layout()
+        # plt.show()
+        path = 'D:/OneDrive - 国立大学法人千葉大学/prj_GCP_v25/plots/'
+        plt.savefig(path + 'F_OH_sigma_' + str(t_lev) + '.png', format='png', dpi=1200, bbox_inches='tight')
+
+
+    # --- get inca OH
     def get_inca_OH(self):
         # -
         def merge_daily_to_monthly_oh(how="mean"):

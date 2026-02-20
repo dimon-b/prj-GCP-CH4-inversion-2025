@@ -8,7 +8,6 @@ Project:    GCP/GMB 2025 project [server part]
 import os
 import pandas as pd
 import subprocess
-from pathlib import Path
 
 import _set_case
 

@@ -58,9 +58,8 @@ class SetCase():
 
         # -
         self.inc_OH_inp_dir = 'D:/dbase/fluxes/gcp2025_flux_inp/LOSS_FIELDS/OH_INCA/Scaled/'
+        self.inc_OH_inp_dir = '/S/data01/G5070/y0715/prj_GCP_v25/fluxes/gcp2025_flux_inp/LOSS_FIELDS/OH_INCA/Scaled'
         self.inc_OH_dir = 'D:/dbase/fluxes/gcp2025_OH/'
-
-        # self.inc_OH_inp_dir = '/S/data01/G5070/y0715/prj_GCP_v3/fluxes/gcp2025_flux_inp/LOSS_FIELDS/OH_INCA/Scaled'
 
         # - obs
         self.obs_dir = 'D:/OneDrive - 国立大学法人千葉大学/prj_apack/obs/'
@@ -78,7 +77,7 @@ class SetCase():
 
         # - inv
         self.icase = 's060'
-        self.inv_wrk_dir = '../results2025/'
+        self.inv_wrk_dir = '../results2025/INCA/'
         self.inv_run_dir = self.inv_wrk_dir
         self.inv_lss_dir = self.inv_run_dir + 'losscorr/'
         self.inv_apr_dir = self.inv_run_dir + 'priors/'
