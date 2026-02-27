@@ -25,71 +25,183 @@ class CnvOHNc(_set_case.SetCase):
         self.end_year = 2024
 
         self.inca_monthly_file = self.inc_OH_dir + f"INCA_DM_OH_monthly_{self.start_year}-{self.end_year}.nc"
+        self.actm_OH_CYC = self.inc_OH_dir + 'tch4_actm_oh1.nc'
         self.actm_OH_IAV = self.inc_OH_dir + 'tch4_actm_gcp21oh.nc'
-        self.inca_final_file = self.inc_OH_dir + f"tch4_INCA_OH_t42.nc"
+        self.actm_OH_INCA = self.inc_OH_dir + 'tch4_INCA_OH_t42.nc'
 
-        # ---
-        # self.get_inca_OH()
+        # --- get INCA OH
+        self.get_inca_OH()
 
-        # ---
-        self.check_inca_OH()
+        # --- check INCA OH
+        self.check_incaOH_ts()
+        # self.check_incaOH_latlev()
+        # self.check_incaOH_latlon()
 
-    # --- check inca OH
-    def check_inca_OH(self):
-        # Open datasets
+    def check_incaOH_latlon(self, year=2005, month=1, sigma=0.9995):
         ds_actm = xr.open_dataset(self.actm_OH_IAV, decode_times=False)
         start_date = "1980-01-01"
         new_time = pd.date_range(start=start_date, periods=ds_actm.sizes["time"], freq="MS")
         ds_actm = ds_actm.assign_coords(time=new_time)
 
-        ds_inca = xr.open_dataset(self.inca_final_file)
+        ds_inca = xr.open_dataset(self.actm_OH_INCA)
 
-        print(ds_actm["level"])
+        # --- Select month
+        sel_time = f"{year:04d}-{month:02d}-01"
+        actm_mon = ds_actm["NDOH"].sel(time=sel_time)
+        inca_mon = ds_inca["OH"].sel(time=sel_time)
+
+        # --- Select nearest sigma level
+        actm_map = actm_mon.sel(level=sigma, method="nearest")
+        inca_map = inca_mon.sel(level=sigma, method="nearest")
+
+        lat = actm_map["y"].values
+        lon = actm_map["x"].values
+
+        # --- Ensure ordering: (lat, lon)
+        actm_plot = actm_map.transpose("y", "x").values
+        inca_plot = inca_map.transpose("y", "x").values
+
+        # --- Common color scale (reuse your style)
+        levels = np.linspace(0, 1e6 / 1000, 11)
+
+        # --- Plot
+        fig, axes = plt.subplots(1, 2, figsize=(10, 4), sharex=True, sharey=True)
+
+        cs1 = axes[0].contourf(lon, lat, actm_plot, levels=levels, cmap="jet", extend="both")
+        axes[0].set_title(f"ACTM OH ({year}-{month:02d}, σ={actm_map.level.values:.2f})")
+        axes[0].set_xlabel("Longitude")
+        axes[0].set_ylabel("Latitude")
+
+        cs2 = axes[1].contourf(lon, lat, inca_plot, levels=levels, cmap="jet", extend="both")
+        axes[1].set_title(f"INCA OH ({year}-{month:02d}, σ={inca_map.level.values:.2f})")
+        axes[1].set_xlabel("Longitude")
+
+        # --- Horizontal colorbar
+        cbar = fig.colorbar(cs1, ax=axes.ravel().tolist(),
+                            orientation="horizontal", pad=0.15, aspect=40, shrink=0.8)
+        cbar.set_ticks(levels)
+        cbar.set_label("OH")
+        plt.show()
+
+    # --- check inca OH latlev
+    def check_incaOH_latlev(self, year=2005, month=8):
+        ds_actm = xr.open_dataset(self.actm_OH_IAV, decode_times=False)
+        start_date = "1980-01-01"
+        new_time = pd.date_range(start=start_date, periods=ds_actm.sizes["time"], freq="MS")
+        ds_actm = ds_actm.assign_coords(time=new_time)
+
+        ds_inca = xr.open_dataset(self.actm_OH_INCA)
+
+        # --- Select month
+        sel_time = f"{year:04d}-{month:02d}-01"
+        actm_mon = ds_actm["NDOH"].sel(time=sel_time)
+        inca_mon = ds_inca["OH"].sel(time=sel_time)
+
+        # --- Average over longitude
+        actm_latlev = actm_mon.mean(dim="x")
+        inca_latlev = inca_mon.mean(dim="x")
+
+        # --- Select sigma range (surface to mid-troposphere)
+        actm_latlev = actm_latlev.sel(level=slice(0.99, 0.75))
+        inca_latlev = inca_latlev.sel(level=slice(0.99, 0.75))
+
+        lat = actm_latlev["y"].values
+        lev = actm_latlev["level"].values
+
+        # --- Force consistent ordering: (level, lat)
+        actm_plot = actm_latlev.transpose("level", "y").values
+        inca_plot = inca_latlev.transpose("level", "y").values
+
+        # --- Common color scale
+        vmin = float(min(np.nanmin(actm_plot), np.nanmin(inca_plot)))
+        vmax = float(max(np.nanmax(actm_plot), np.nanmax(inca_plot)))
+        levels = np.linspace(0, 1e6, 11)
+
+        # --- Plot
+        fig, axes = plt.subplots(1, 2, figsize=(10, 5), sharey=True)
+
+        cs1 = axes[0].contourf(lat, lev, actm_plot, levels=levels, cmap="jet", extend="both")
+        axes[0].set_title(f"ACTM OH ({year}-{month:02d})")
+        axes[0].set_xlabel("Latitude")
+        axes[0].set_ylabel("Sigma level")
+
+        cs2 = axes[1].contourf(lat, lev, inca_plot, levels=levels, cmap="jet", extend="both")
+        axes[1].set_title(f"INCA OH ({year}-{month:02d})")
+        axes[1].set_xlabel("Latitude")
+
+        # --- Invert sigma axis (1.0 at bottom)
+        axes[0].set_ylim(lev.max(), lev.min())
+        axes[1].set_ylim(lev.max(), lev.min())
+
+        # --- Horizontal colorbar
+        cbar = fig.colorbar(cs1, ax=axes.ravel().tolist(), orientation="horizontal",
+                            pad=0.15, aspect=40, shrink=0.8)
+        cbar.set_ticks(levels)
+        cbar.set_label("OH")
+        plt.show()
+
+    # --- check inca OH ts
+    def check_incaOH_ts(self):
+        # Open CYC datasets
+        ds_actm = xr.open_dataset(self.actm_OH_CYC, decode_times=False)
+        start_date = "2015-01-01"
+        new_time = pd.date_range(start=start_date, periods=ds_actm.sizes["time"], freq="MS")
+        ds_actm = ds_actm.assign_coords(time=new_time)
+
+        # # Open IAV datasets
+        # ds_actm = xr.open_dataset(self.actm_OH_IAV, decode_times=False)
+        # start_date = "1980-01-01"
+        # new_time = pd.date_range(start=start_date, periods=ds_actm.sizes["time"], freq="MS")
+        # ds_actm = ds_actm.assign_coords(time=new_time)
+
+        # Open INCA datasets
+        ds_inca = xr.open_dataset(self.actm_OH_INCA)
+
+        # print(ds_actm["level"])
         # print(ds_inca)
 
         # Pick OH variable (change name if needed)
         oh_actm = ds_actm["NDOH"]
         oh_inca = ds_inca["OH"]
 
-        MLO_LAT, MLO_LON = 19.54, -155.58+360  # Mauna Loa
-        t_lev = 0.77
+        MLO_LAT, MLO_LON = 19.54, -155.58 + 360  # Mauna Loa
+        t_lev = 0.39
 
         # Select South Pole and North Pole (nearest grid point)
-        oh_actm_SP = oh_actm.sel(level=t_lev, y=-90, method="nearest").mean(dim=("x"))
+        oh_actm_SP = oh_actm.sel(level=t_lev, y=-80, method="nearest").mean(dim=("x"))
         oh_actm_NP = oh_actm.sel(level=t_lev, y=90, method="nearest").mean(dim=("x"))
-        oh_actm_MLO = oh_actm.sel(level=t_lev,y=MLO_LAT, x=MLO_LON, method="nearest")
+        oh_actm_MLO = oh_actm.sel(level=t_lev, y=MLO_LAT, x=MLO_LON, method="nearest")
 
-        oh_inca_SP = oh_inca.sel(level=t_lev, y=-90, method="nearest").mean(dim=("x"))
+        oh_inca_SP = oh_inca.sel(level=t_lev, y=-80, method="nearest").mean(dim=("x"))
         oh_inca_NP = oh_inca.sel(level=t_lev, y=90, method="nearest").mean(dim=("x"))
-        oh_inca_MLO = oh_inca.sel(level=t_lev,y=MLO_LAT, x=MLO_LON, method="nearest")
+        oh_inca_MLO = oh_inca.sel(level=t_lev, y=MLO_LAT, x=MLO_LON, method="nearest")
 
         # Plot
         plt.figure(figsize=(8, 5))
 
         plt.plot(oh_actm["time"], oh_actm_SP, label="ACTM SP", color="r")
-        plt.plot(oh_actm["time"], oh_actm_MLO, label="ACTM MLO", color="g")
         plt.plot(oh_actm["time"], oh_actm_NP, label="ACTM NP", color="b")
+        plt.plot(oh_actm["time"], oh_actm_MLO, label="ACTM MLO", color="g")
 
         plt.plot(oh_inca["time"], oh_inca_SP, label="INCA SP", color="r", linestyle="--")
-        plt.plot(oh_inca["time"], oh_inca_MLO, label="INCA MLO", color="g", linestyle="--")
         plt.plot(oh_inca["time"], oh_inca_NP, label="INCA NP", color="b", linestyle="--")
+        plt.plot(oh_inca["time"], oh_inca_MLO, label="INCA MLO", color="g", linestyle="--")
 
         plt.xlabel("")
         plt.ylabel("OH concentration")
         plt.title("OH Timeseries")
-        plt.xlim(pd.Timestamp("2000-01-01"), pd.Timestamp("2005-12-31"))
+        plt.xlim(pd.Timestamp("2014-12-01"), pd.Timestamp("2016-01-31"))
         plt.legend()
         plt.grid(True)
         plt.tight_layout()
-        # plt.show()
-        path = 'D:/OneDrive - 国立大学法人千葉大学/prj_GCP_v25/plots/'
-        plt.savefig(path + 'F_OH_sigma_' + str(t_lev) + '.png', format='png', dpi=1200, bbox_inches='tight')
-
+        plt.show()
+        # path = 'D:/OneDrive - 国立大学法人千葉大学/prj_GCP_v25/plots/'
+        # plt.savefig(path + 'F_OH_sigma_' + str(t_lev) + '.png', format='png', dpi=1200, bbox_inches='tight')
 
     # --- get inca OH
     def get_inca_OH(self):
         # -
-        def merge_daily_to_monthly_oh(how="mean"):
+        def merge_daily_to_monthly_oh():
             ds_all = []
 
             for year in range(self.start_year, self.end_year + 1):
@@ -100,10 +212,7 @@ class CnvOHNc(_set_case.SetCase):
                 if not pd.api.types.is_datetime64_any_dtype(ds.time_counter):
                     ds["time_counter"] = xr.decode_cf(ds).time_counter
 
-                if how == "mean":
-                    ds_mon = ds.resample(time_counter="MS").mean()
-                else:
-                    raise ValueError("how must be 'mean' or 'sum'")
+                ds_mon = ds.resample(time_counter="MS").mean()
                 ds_all.append(ds_mon)
 
             ds_merged = xr.concat(ds_all, dim="time_counter")
@@ -112,12 +221,16 @@ class CnvOHNc(_set_case.SetCase):
 
         # -
         def get_actm_param():
-            ds = xr.open_dataset(self.actm_OH_IAV, decode_times=False)
-            lon = ds["x"].values
-            lat = ds["y"].values
-            lev = ds["level"].values
+            ds_actm = xr.open_dataset(self.actm_OH_IAV, decode_times=False)
+            start_date = "1980-01-01"
+            new_time = pd.date_range(start=start_date, periods=ds_actm.sizes["time"], freq="MS")
+            ds_actm = ds_actm.assign_coords(time=new_time)
+
+            lon = ds_actm["x"].values
+            lat = ds_actm["y"].values
+            lev = ds_actm["level"].values
             print(lon.shape, lat.shape, lev.shape)
-            return lon, lat, lev
+            return lon, lat, lev, ds_actm
 
         # -
         def inca_to_actm_latlon(t_lon, t_lat):
@@ -128,8 +241,15 @@ class CnvOHNc(_set_case.SetCase):
                             "lon": "x"
                             })
 
-            # convert lon from -180:180 to 0:360 and replace coordinate
-            ds = ds.assign_coords(x=(ds["x"] + 360) % 360)
+            # convert lon from -180:180 to 0:360
+            lon360 = (ds["x"] + 360) % 360
+            # assign as coordinate and set proper attributes
+            ds = ds.assign_coords(x=lon360)
+            ds["x"].attrs.update({"standard_name": "longitude",
+                                  "long_name": "Longitude",
+                                  "units": "degrees_east",
+                                  "axis": "X"
+                                  })
             ds = ds.sortby("x")
 
             ds_int_ll = ds.interp(x=t_lon, y=t_lat, method="linear")
@@ -137,17 +257,17 @@ class CnvOHNc(_set_case.SetCase):
             return ds_int_ll
 
         # -
-        def inca_to_actm_lev(ds, actm_sigma):
+        def inca_to_actm_lev(ds_inca, actm_sigma):
             # Surface pressure (assume lowest level ~ surface)
-            ps = ds["level"].max().item()
+            ps = ds_inca["level"].max().item()
 
             # Compute sigma = p / ps
-            sigma = ds["level"] / ps
-            ds = ds.assign_coords(sigma=("level", sigma.values))
-            ds = ds.swap_dims({"level": "sigma"}).drop_vars("level")
+            sigma = ds_inca["level"] / ps
+            ds_inca = ds_inca.assign_coords(sigma=("level", sigma.values))
+            ds_inca = ds_inca.swap_dims({"level": "sigma"}).drop_vars("level")
 
             # Interpolate to ACTM sigma grid
-            ds_int_lv = ds.interp(sigma=actm_sigma, method="linear")
+            ds_int_lv = ds_inca.interp(sigma=actm_sigma, method="linear")
 
             # Rename sigma -> level for ACTM compatibility
             ds_int_lv = ds_int_lv.rename({"sigma": "level"})
@@ -161,6 +281,57 @@ class CnvOHNc(_set_case.SetCase):
             # Metadata
             ds_int_lv["OH"].attrs["units"] = "molecules cm-3"
             ds_int_lv["OH"].attrs["long_name"] = "Hydroxyl radical"
+
+            return ds_int_lv
+
+        # -
+        def inca_to_actm_lev_pressure(ds_inca, ds_actm):
+            """
+            Interpolate INCA fields to ACTM vertical grid using pressure-space interpolation,
+            while keeping 'level' as the vertical coordinate name in the output.
+            """
+
+            # --- ACTM sigma levels (final vertical coordinate)
+            actm_sigma = ds_actm["level"]  # 1D: (level)
+
+            # --- Surface pressure from INCA (per column)
+            ps = ds_inca["level"].max(dim="level")  # (time, y, x)
+
+            # --- Convert ACTM sigma to pressure (Pa)
+            p_actm = actm_sigma * ps
+
+            # --- Interpolate INCA to ACTM pressure levels
+            ds_int_lv = ds_inca.interp(level=p_actm, method="linear")
+
+            # --- Overwrite vertical coordinate with ACTM sigma
+            ds_int_lv = ds_int_lv.assign_coords(level=actm_sigma)
+
+            # --- Convert OH: molecules/m3 → molecules/cm3
+            ds_int_lv["OH"] = ds_int_lv["OH"] / 1e6
+
+            # --- Drop vmroh safely
+            if "vmroh" in ds_int_lv:
+                ds_int_lv = ds_int_lv.drop_vars("vmroh")
+
+            # --- Metadata
+            ds_int_lv["level"].attrs.update({
+                "standard_name": "atmosphere_sigma_coordinate",
+                "long_name": "ACTM sigma level"
+            })
+            ds_int_lv["OH"].attrs.update({
+                "units": "molecules cm-3",
+                "long_name": "Hydroxyl radical"
+            })
+
+            # # Replace first vertical level of OH in ds_int_lv with ACTM OH
+            # nt = ds_int_lv.sizes["time"]
+            # ds_actm_tail = ds_actm.isel(time=slice(-nt, None))
+            # ndoh0 = ds_actm_tail["NDOH"].isel(level=0)
+            # ds_int_lv["OH"][{"level": 0}] = ndoh0.values
+
+            # print(ds_int_lv)
+            # print(ds_actm)
+            # exit()
 
             return ds_int_lv
 
@@ -191,16 +362,18 @@ class CnvOHNc(_set_case.SetCase):
             merge_daily_to_monthly_oh()
 
         # - get actm lat/lon/lev
-        lon_a, lat_a, lev_a = get_actm_param()
+        lon_a, lat_a, lev_a, ds_a = get_actm_param()
 
         # - inca at actm lat/lon
         ds_latlon = inca_to_actm_latlon(lon_a, lat_a)
         print(ds_latlon)
+        # exit()
 
         # -
-        ds_lev = inca_to_actm_lev(ds_latlon, lev_a)
+        # ds_lev = inca_to_actm_lev(ds_latlon, lev_a)
+        ds_lev = inca_to_actm_lev_pressure(ds_latlon, ds_a)
         ds_ = extend_2_years(ds_lev)
 
-        ds_.encoding.pop("unlimited_dims", None)
+        # ds_.encoding.pop("unlimited_dims", None)
         print(ds_)
-        ds_.to_netcdf(self.inca_final_file)
+        ds_.to_netcdf(self.actm_OH_INCA)

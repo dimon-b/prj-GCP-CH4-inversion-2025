@@ -141,9 +141,9 @@ class ObsModNc(_set_case.SetCase):
         # - model
         speriod = str(self.yr_s) + '_' + str(self.yr_e)
         syr = str(self.yr_s)
-        path = self.mod_dir + '/' + 'ch4_c1' + '_' + speriod + '.nc'
+        path = self.inv_mod_dir + '/' + 'ch4_c1' + '_' + speriod + '.nc'
         ds = xr.open_dataset(path, decode_times=False)
-        path = self.mod_dir + '/' + 'z' + '_' + speriod + '.nc'
+        path = self.inv_mod_dir + '/' + 'z' + '_' + speriod + '.nc'
         ds_z = xr.open_dataset(path, decode_times=False)
         inq = self.invq[0]
         var = ds[inq]

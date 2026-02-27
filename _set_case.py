@@ -45,13 +45,14 @@ class SetCase():
     def def_path(self):
         # - inp fluxes
         self.flx_inp_dir = 'D:/dbase/fluxes/gcp2025_flux_inp/'
-        self.flx_inp_dir = '/S/data01/G5070/y0715/prj_GCP_v3/fluxes/gcp2025_flux_inp/'
+        # self.flx_inp_dir = '/S/data01/G5070/y0715/prj_GCP_v25/fluxes/gcp2025_flux_inp/'
         self.flx_inp_nc = 'GCP_Prior_CH4_fluxes.nc'
 
         # - prior fluxes
         self.flx_apr_dir = 'D:/dbase/fluxes/gcp2025_flux_prior/'
         self.flx_apr_nc = "gcp25_inv1.nc"  # total only to convert to gt3
         self.flx_apr_nc_full = "gcp25_inv1_full.nc"  # full components
+        self.inv_apr_grd = self.flx_apr_dir + 'fch4_gcp2025_prior_inv1.grd'
 
         # - inv dirs
         self.inv_dir = '../inv_dir/'
@@ -69,7 +70,6 @@ class SetCase():
         self.sites_f = self.inv_dir + 'obsrvCH4_60sites.txt'
 
         # - model
-        self.mod_dir = 'D:/dbase/ACTM/CH4_t42l67_CYC_JRA3Q_M_250920/'
         self.invq = ['Q03', 'Q04', 'Q05', 'Q06', 'Q07']
         self.invcases = ['inv1']
         self.unpcases = ['p30', 'p50', 'p99']
@@ -77,21 +77,23 @@ class SetCase():
 
         # - inv
         self.icase = 's060'
-        self.inv_wrk_dir = '../results2025/INCA/'
+        # self.inv_wrk_dir = '../results2025/INCA/'
+        # self.inv_ch4_dir = '../trout_MIROC/CH4_t42l67_INCA_M_260212/'
+        self.inv_wrk_dir = '../results2025/CYC/'
+        self.inv_mod_dir = '../trout_MIROC/CH4_t42l67_CYC_M_260115/'
         self.inv_run_dir = self.inv_wrk_dir
-        self.inv_lss_dir = self.inv_run_dir + 'losscorr/'
-        self.inv_apr_dir = self.inv_run_dir + 'priors/'
+        self.inv_lsc_dir = self.inv_run_dir + 'losscorr/'
         self.inv_pst_dir = self.inv_run_dir + 'flux2d/'
         self.inv_ncd_dir = self.inv_run_dir + 'nc_out/'
         self.plt_dir = '../plots/'
-        self.inv_apr_grd = self.inv_apr_dir + 'fch4_gcp2025_prior_inv1.grd'
+
 
         # - concentration
-        self.conc_cases = [('pri_cyc', 'D:/dbase/ACTM_OH/run_ES4/CH4_t42l67_CYC_prior_M_240705/'),
-                           ('pri_iav', 'D:/dbase/ACTM_OH/run_ES4/CH4_t42l67_IAV_prior_M_240707/'),
-                           ('pst_cyc', 'D:/dbase/ACTM_OH/run_Oak/GWG_ch4gcp_OH-clm/'),
-                           ('pst_iav', 'D:/dbase/ACTM_OH/run_Oak/GWG_ch4gcp_OH-iav/')
-                           ]
+        # self.conc_cases = [('pri_cyc', 'D:/dbase/ACTM_OH/run_ES4/CH4_t42l67_CYC_prior_M_240705/'),
+        #                    ('pri_iav', 'D:/dbase/ACTM_OH/run_ES4/CH4_t42l67_IAV_prior_M_240707/'),
+        #                    ('pst_cyc', 'D:/dbase/ACTM_OH/run_Oak/GWG_ch4gcp_OH-clm/'),
+        #                    ('pst_iav', 'D:/dbase/ACTM_OH/run_Oak/GWG_ch4gcp_OH-iav/')
+        #                    ]
 
         self.conc_cases = [('pri_gcp', 'D:/dbase/ACTM/CH4_t42l67_CYC_JRA3Q_M_260115/'),
                            ('pst_gcp', 'D:/dbase/ACTM/CH4_t42l67_CYC_JRA3Q_M_260131_post/'),

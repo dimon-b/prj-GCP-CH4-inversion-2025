@@ -19,7 +19,7 @@ class LossCorrPlot(_set_case.SetCase):
 
         self.fs = 10
         self.f_cgt = self.inv_pst_dir + 'check_GT_'
-        self.f_bldd = self.inv_lss_dir + 'gcp_burd_add_'
+        self.f_bldd = self.inv_lsc_dir + 'gcp_burd_add_'
 
         # --- get loss and burden plots
         self.run_GTLLC()
@@ -57,7 +57,7 @@ class LossCorrPlot(_set_case.SetCase):
 
             # --- formatting
             ax[0].set_ylabel('CH$_4$ flux', fontsize=8)
-            ax[0].set_ylim([500, 700])
+            ax[0].set_ylim([450, 650])
             ax[0].legend(loc='upper left', ncol=3, fontsize=8)
             ax[1].set_ylabel(r'$\Delta$CH$_4$ at ref. site (SPO)', fontsize=8)
             ax[2].set_ylabel('Loss correction flux', fontsize=8)
