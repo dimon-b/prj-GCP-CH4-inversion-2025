@@ -77,9 +77,10 @@ class SetCase():
 
         # - inv
         self.icase = 's060'
-        # self.inv_wrk_dir = '../results2025/INCA/'
-        # self.inv_ch4_dir = '../trout_MIROC/CH4_t42l67_INCA_M_260212/'
-        self.inv_wrk_dir = '../results2025/CYC/'
+        self.hcase = 'CYC'
+        # self.hcase = 'INCA'
+        self.inv_wrk_dir = '../results2025/' + self.hcase + '/'
+        # self.inv_mod_dir = '../trout_MIROC/CH4_t42l67_INCA_M_260212/'
         self.inv_mod_dir = '../trout_MIROC/CH4_t42l67_CYC_M_260115/'
         self.inv_run_dir = self.inv_wrk_dir
         self.inv_lsc_dir = self.inv_run_dir + 'losscorr/'

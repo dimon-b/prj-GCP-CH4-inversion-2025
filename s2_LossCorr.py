@@ -14,7 +14,7 @@ class LossCorr(_set_case.SetCase):
 
     def __init__(self):
         super().__init__()
-        self.f_blos = self.inv_lsc_dir + 'gcp_burd_'
+        self.f_blos = self.inv_lsc_dir + 'frt_burd_'
         self.f_bldd = self.inv_lsc_dir + 'gcp_burd_add_'
         self.f_outl = self.inv_lsc_dir + 'gcp_LC_'
         # self.f_obss = '../inp_dir/obs_out/obspack/ch4_mlo_surface-flask_1_representative.txt'
@@ -36,9 +36,9 @@ class LossCorr(_set_case.SetCase):
                 df_bl['month'] = 12
                 df_bl['datetime'] = pd.to_datetime(df_bl[['year', 'month', 'day']])
                 df_bl.set_index('datetime', inplace=True)
-                df_bl['lch4'] = df_bl['loh_'] + df_bl['lcl_'] + df_bl['lod_']
+                df_bl['lch4'] = df_bl['loh'] + df_bl['lcl'] + df_bl['lod']
                 df_bl.reset_index(inplace=True)
-                df_bl = df_bl.drop(['year', 'month', 'day', 'loh_', 'lcl_', 'lod_'], axis=1)
+                df_bl = df_bl.drop(['year', 'month', 'day', 'loh', 'lcl', 'lod'], axis=1)
                 return df_bl
             except IOError:
                 print('\t\tFile not found', fname)
@@ -77,17 +77,30 @@ class LossCorr(_set_case.SetCase):
             df_bl = get_burdloss()
 
             df_rs = pd.merge(df_bl, df_ob, on='datetime')
-            df_rs['d_ch4'] = (df_rs['ch4_1st'] - df_rs['ch4_obs'])
-            df_rs['LC'] = df_rs['d_ch4'] / (df_rs['ch4_1st']) * df_rs['lch4']
+            df_rs['d_ch4'] = (df_rs['ch4_ref'] - df_rs['ch4_obs'])
+            df_rs['LC'] = df_rs['d_ch4'] / (df_rs['ch4_ref']) * df_rs['lch4']
             df_rs['LC_fact'] = (df_rs['lch4'] - df_rs['LC']) / df_rs['lch4']
+
+            #
+            # - fixme -
+            #
+            if 'CYC' in self.inv_wrk_dir:
+                mask = (df_rs['year'] > 2006) & (df_rs['year'] < 2019)
+                df_rs.loc[mask, 'LC_fact'] = (df_rs.loc[mask, 'LC_fact'] - 1.0)*1.5 +1.0
+                mask = df_rs['year'] >= 2019
+                df_rs.loc[mask, 'LC_fact'] = (df_rs.loc[mask, 'LC_fact'] - 1.0)*2.0 +1.0
+
             df_rs['bch4_corr'] = df_rs['bch4'] * df_rs['LC_fact']
-            # print(df_rs)
-            # exit()
+
+            # order
+            new_order = ["year", "ch4_obs", "ch4_ref", "d_ch4", "bch4", "bch4_corr", "lch4", "LC", "LC_fact", ]
+            df_rs = df_rs[new_order]
+            print(df_rs)
 
             # -
-            print('Mean LC, LC_fact, d_ch4, bch4, bch4*LC_fact for', trac,
-                  round(df_rs['LC'].mean(), 2), round(df_rs['LC_fact'].mean(), 4), round(df_rs['d_ch4'].mean(), 4),
-                  round(df_rs['bch4'].mean(), 2), round(df_rs['bch4_corr'].mean(), 2))
+            # print('Mean LC, LC_fact, d_ch4, bch4, bch4*LC_fact for', trac,
+            #       round(df_rs['LC'].mean(), 2), round(df_rs['LC_fact'].mean(), 4), round(df_rs['d_ch4'].mean(), 4),
+            #       round(df_rs['bch4'].mean(), 2), round(df_rs['bch4_corr'].mean(), 2))
 
             # - to files
             df_rs[['year', 'LC_fact']].to_csv(self.f_outl + self.tracer + '.txt', sep='\t', index=False, header=True)

@@ -33,7 +33,7 @@ class Write_gt3(_set_case.SetCase):
             with open(fortran_file, "r", encoding="utf-8") as f:
                 lines = f.readlines()
 
-            lines[6] = f"character(len=*),parameter    :: work_dir = '{self.inv_wrk_dir}'\n"
+            lines[6] = f"    character(len=*),parameter    :: work_dir = '{self.inv_wrk_dir}'\n"
 
             with open(fortran_file, "w", encoding="utf-8") as f:
                 f.writelines(lines)
