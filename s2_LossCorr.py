@@ -81,15 +81,19 @@ class LossCorr(_set_case.SetCase):
             df_rs['LC'] = df_rs['d_ch4'] / (df_rs['ch4_ref']) * df_rs['lch4']
             df_rs['LC_fact'] = (df_rs['lch4'] - df_rs['LC']) / df_rs['lch4']
 
-            #
-            # - fixme -
-            #
+
+            # fixme
             if 'CYC' in self.inv_wrk_dir:
                 mask = (df_rs['year'] > 2006) & (df_rs['year'] < 2019)
                 df_rs.loc[mask, 'LC_fact'] = (df_rs.loc[mask, 'LC_fact'] - 1.0)*1.5 +1.0
                 mask = df_rs['year'] >= 2019
                 df_rs.loc[mask, 'LC_fact'] = (df_rs.loc[mask, 'LC_fact'] - 1.0)*2.0 +1.0
 
+            if 'INCA' in self.inv_wrk_dir:
+                mask = df_rs['year'] >= 2012
+                df_rs.loc[mask, 'LC_fact'] = (df_rs.loc[mask, 'LC_fact'] - 1.0)*1.5 + 1.0
+
+                
             df_rs['bch4_corr'] = df_rs['bch4'] * df_rs['LC_fact']
 
             # order
