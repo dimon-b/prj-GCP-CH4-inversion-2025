@@ -24,10 +24,11 @@ class WriteNcFlux(_set_case.SetCase):
 
         self.unp = 'p30'
         self.unx = 'ctl'
-        self.wrt_flux_tot()
+        self.flx_ncd_dir = self.flx_pst_dir + self.hcase + '/nc_out/'
+        self.write_submission_flux()
 
     # --- write flux categories
-    def wrt_flux_tot(self):
+    def write_submission_flux(self):
         # - get_post_flx_grd
         def get_post_flx_grd(unp, unx, invc):
             # - read bin
@@ -37,7 +38,7 @@ class WriteNcFlux(_set_case.SetCase):
                     fl2d = np.fromfile(f, dtype='<f4', count=size_2d * self.nyear_nc
                                        ).reshape(self.nyear_nc, self.nmonth, self.d1_nlat, self.d1_nlon)
 
-                print(f'\t\t\t post flux shape from grd file: {fl2d.shape}')
+                print(f'\t\tpost flux shape from grd file: {fl2d.shape}')
                 return fl2d
 
             # - flux shape correction [yr, mn, :, :] -> [time, :, :]
@@ -47,14 +48,14 @@ class WriteNcFlux(_set_case.SetCase):
                     for mn in np.arange(self.nmonth):
                         ss = yr * self.nmonth + mn
                         flx1[ss, :, :] = flx[yr, mn, :, :]
-                print(f'\t\t\t post flux shape from after correction: {flx1.shape}, '
+                print(f'\t\tpost flux shape after reshaping: {flx1.shape}, '
                       f'time length: {self.nyear_nc * self.nmonth}, years: {self.nyear_nc}, months: {self.nmonth}')
                 return flx1
 
             # ===========================================================
             # - post
-            i_file = self.inv_pst_dir + unp + '/' + self.icase + '_' + unx + '_' + invc + '.grd'
-            print('\t\tPosterior flux reading: ', invc, i_file)
+            i_file = self.flx_pst_dir + self.hcase + '/flux2d/' + unp + '/' + self.icase + '_' + unx + '_' + invc + '.grd'
+            print('\tPosterior flux reading: ', invc, i_file)
             flx = read_flx_bin(i_file)
             flx1 = cor_shape(flx)
             return flx1
@@ -65,8 +66,6 @@ class WriteNcFlux(_set_case.SetCase):
             def get_prior_full_nc():
                 path = self.flx_apr_dir + self.flx_apr_nc_full
                 ds = xr.open_dataset(path, decode_times=False)
-                # print(ds)
-                # exit()
                 return ds
 
             ds = get_prior_full_nc()
@@ -231,7 +230,12 @@ class WriteNcFlux(_set_case.SetCase):
         # - write_1nc_total
         def write_1nc_total(invc, ds_):
 
-            fout = self.inv_ncd_dir + '/MIROC4-ACTM_totflux_GMB_SURF_OH_Transcom.nc'
+            fout = self.flx_ncd_dir + '/MIROC4-ACTM_totflux_GMB_SURF_OH_Transcom.nc'
+            if self.hcase == 'CYC':
+                fout = self.flx_ncd_dir + '/MIROC4-ACTM_totflux_GMB_SURF_OH_Transcom.nc'
+            elif self.hcase == 'INCA':
+                fout = self.flx_ncd_dir + '/MIROC4-ACTM_totflux_GMB_SURF_OH_INCA.nc'
+
             nc = netCDF4.Dataset(fout, 'w', format='NETCDF4')
             nc.description = 'Net prior and posteor CH4 emissions resulted from the surface based inversion for GCP-CH4, 2025. The results are produced at JAMSTEC, Japan. For details please contact at prabir@jamstec.go.jp and d.belikov@chiba-u.jp.'
             nc.Institution = 'Japan Agency for Marine-Earth Science and Technology (JAMSTEC)'
@@ -256,29 +260,37 @@ class WriteNcFlux(_set_case.SetCase):
             lon.units = 'degrees east from -180'
             lon.long_name = 'longitudes'
             cellarea = nc.createVariable('carea', 'f4', ('lat',))
-            prior = nc.createVariable('fch4_prior', 'f4', ('time', 'lat', 'lon'))
-            post = nc.createVariable('fch4_post', 'f4', ('time', 'lat', 'lon'))
+            fch4_prior = nc.createVariable('fch4_prior', 'f4', ('time', 'lat', 'lon'))
+            fch4_post = nc.createVariable('fch4_post', 'f4', ('time', 'lat', 'lon'))
 
             # --- set data
             lat[:] = self.d1_lats
             lon[:] = self.d1_lons
             cellarea[:] = self.garia_d1
-            prior[:, :, :] = ds_['monthly_fch4_prior_soil0'].values
-            post[:, :, :] = ds_['monthly_fch4_post_soil0'].values
+            fch4_prior[:, :, :] = ds_['monthly_fch4_total_prior'].values
+            fch4_post[:, :, :] = ds_['monthly_fch4_total_post'].values
 
             # --- date-time
             time[:] = ds_["time_hours_since_1970"]
 
             # --- units
             cellarea.units = 'm2'
-            prior.units = 'g-CH4/m2/month'
-            post.units = 'g-CH4/m2/month'
-            prior.valid_range = np.array((np.min(prior), np.max(prior)))
-            post.valid_range = np.array((np.min(post), np.max(post)))
+            fch4_prior.units = 'g-CH4/m2/month'
+            fch4_post.units = 'g-CH4/m2/month'
+
+            # ---
+            fch4_prior.valid_range = np.array((np.min(fch4_prior), np.max(fch4_prior)))
+            fch4_post.valid_range = np.array((np.min(fch4_post), np.max(fch4_post)))
 
             print('*** SUCCESS writing for ', invc, fout)
-            print(prior.valid_range)
-            print(post.valid_range)
+            print('***** Check valid range')
+            def pr(name, arr):
+                v = arr.valid_range
+                print(f"      Check {name:<15} [{v[0]:.5f}, {v[1]:5f}]")
+            pr('prior tot', fch4_prior)
+            pr('post  tot', fch4_post)
+            # print('      Check prior ', fch4_prior.valid_range)
+            # print('      Check post  ', fch4_post.valid_range)
             nc.close()
 
         # - get_post_categ
@@ -286,7 +298,7 @@ class WriteNcFlux(_set_case.SetCase):
 
             flx_prior = flx_prior_.copy()
             flx_join = flx_join_.copy()
-            print(flx_prior)
+            # print(flx_prior)
 
             # - Harmonize time coordinate
             if flx_join.time.dtype != flx_prior.time.dtype:
@@ -302,19 +314,16 @@ class WriteNcFlux(_set_case.SetCase):
             if not CATEGORIES:
                 raise RuntimeError("No flux_ch4_<cat> variables detected")
 
-            print("Detected categories:")
-            for c in CATEGORIES:
-                print(f"  - {c}")
+            # print("Detected categories:")
+            # for c in CATEGORIES:
+            #     print(f"  - {c}")
 
             # - Totals
             f_tot_prior = flx_prior["flux_ch4_prior_soil0"]
             f_tot_post = flx_join["fch4_total_post_soil0"]
 
             # - Protect against division by zero
-            f_tot_prior_safe = xr.where(np.abs(f_tot_prior) > 1e-15,
-                                        f_tot_prior,
-                                        np.nan,
-                                        )
+            # f_tot_prior_safe = xr.where(np.abs(f_tot_prior) > 1e-15, f_tot_prior, np.nan)
 
             # - Init output dataset
             ds_out = xr.Dataset(coords=flx_join.coords)
@@ -326,10 +335,14 @@ class WriteNcFlux(_set_case.SetCase):
                 ds_out[f"fch4_{cat}_prior"] = flx_prior[f"flux_ch4_{cat}"]
 
             # - Redistribute POSTERIOR categories
-            print("\nProcessing categories:")
+            # print("\nProcessing categories:")
             for cat in CATEGORIES:
-                print(f"  - {cat}")
-                ratio = flx_prior[f"flux_ch4_{cat}"] / f_tot_prior_safe
+                # print(f"  - {cat}")
+                # ratio = flx_prior[f"flux_ch4_{cat}"] / f_tot_prior_safe
+                # ds_out[f"fch4_{cat}_post"] = f_tot_post * ratio
+                # ds_out[f"fch4_{cat}_post"] = xr.where(np.abs(f_tot_prior) > 1e-15, f_tot_post * ratio, 0.0)
+                mask = np.abs(f_tot_prior) > 1e-15
+                ratio = xr.where(mask, flx_prior[f"flux_ch4_{cat}"] / f_tot_prior, 0.0)
                 ds_out[f"fch4_{cat}_post"] = f_tot_post * ratio
 
             # - soils
@@ -352,15 +365,17 @@ class WriteNcFlux(_set_case.SetCase):
 
             if not np.issubdtype(ds_out.time.dtype, np.datetime64):
                 ds_out['time'] = xr.decode_cf(ds_out[['time']]).time
-            # ds_out = ds_out.fillna(0.0)
-            print(ds_out)
             return ds_out
 
         # --- Write the netcdf file
         def write_1nc_cat(invc, ds_):
 
-            # fout = self.inv_ncd_dir + 'MIROC4-ACTM_12cat_' + invc + 'SURF.nc'
-            fout = self.inv_ncd_dir + '/MIROC4-ACTM_catflux_GMB_SURF_OH_Transcom.nc'
+            fout = self.flx_ncd_dir + '/MIROC4-ACTM_catflux_GMB_SURF_OH_Transcom.nc'
+            if self.hcase == 'CYC':
+                fout = self.flx_ncd_dir + '/MIROC4-ACTM_catflux_GMB_SURF_OH_Transcom.nc'
+            elif self.hcase == 'INCA':
+                fout = self.flx_ncd_dir + '/MIROC4-ACTM_catflux_GMB_SURF_OH_INCA.nc'
+
             nc = netCDF4.Dataset(fout, 'w', format='NETCDF4')
             nc.description = 'Monthly category wise flux for GCP-CH4, 2021. The results are produced at JAMSTEC, Japan. For details please contact at prabir@jamstec.go.jp and d.belikov@chiba-u.jp.'
             nc.Institution = 'Japan Agency for Marine-Earth Science and Technology (JAMSTEC)'
@@ -473,13 +488,92 @@ class WriteNcFlux(_set_case.SetCase):
             fch4_soils_prior.units = 'g-CH4/m2/month'
             fch4_soils_post.units = 'g-CH4/m2/month'
 
+            # ---
+            fch4_tot_prior.valid_range = np.array((np.min(fch4_tot_prior), np.max(fch4_tot_prior)))
+            fch4_tot_post.valid_range = np.array((np.min(fch4_tot_post), np.max(fch4_tot_post)))
+
+            fch4_wet_prior.valid_range = np.array((np.min(fch4_wet_prior), np.max(fch4_wet_prior)))
+            fch4_wet_post.valid_range = np.array((np.min(fch4_wet_post), np.max(fch4_wet_post)))
+            fch4_bb_prior.valid_range = np.array((np.min(fch4_bb_prior), np.max(fch4_bb_prior)))
+            fch4_bb_post.valid_range = np.array((np.min(fch4_bb_post), np.max(fch4_bb_post)))
+            fch4_biofuel_prior.valid_range = np.array((np.min(fch4_biofuel_prior), np.max(fch4_biofuel_prior)))
+            fch4_biofuel_post.valid_range = np.array((np.min(fch4_biofuel_post), np.max(fch4_biofuel_post)))
+            fch4_oilgas_prior.valid_range = np.array((np.min(fch4_oilgas_prior), np.max(fch4_oilgas_prior)))
+            fch4_oilgas_post.valid_range = np.array((np.min(fch4_oilgas_post), np.max(fch4_oilgas_post)))
+            fch4_coal_prior.valid_range = np.array((np.min(fch4_coal_prior), np.max(fch4_coal_prior)))
+            fch4_coal_post.valid_range = np.array((np.min(fch4_coal_post), np.max(fch4_coal_post)))
+            fch4_agri_prior.valid_range = np.array((np.min(fch4_agri_prior), np.max(fch4_agri_prior)))
+            fch4_agri_post.valid_range = np.array((np.min(fch4_agri_post), np.max(fch4_agri_post)))
+            fch4_waste_prior.valid_range = np.array((np.min(fch4_waste_prior), np.max(fch4_waste_prior)))
+            fch4_waste_post.valid_range = np.array((np.min(fch4_waste_post), np.max(fch4_waste_post)))
+            fch4_geol_prior.valid_range = np.array((np.min(fch4_geol_prior), np.max(fch4_geol_prior)))
+            fch4_geol_post.valid_range = np.array((np.min(fch4_geol_post), np.max(fch4_geol_post)))
+            fch4_termite_prior.valid_range = np.array((np.min(fch4_termite_prior), np.max(fch4_termite_prior)))
+            fch4_termite_post.valid_range = np.array((np.min(fch4_termite_post), np.max(fch4_termite_post)))
+            fch4_oce_prior.valid_range = np.array((np.min(fch4_oce_prior), np.max(fch4_oce_prior)))
+            fch4_oce_post.valid_range = np.array((np.min(fch4_oce_post), np.max(fch4_oce_post)))
+            fch4_soils_prior.valid_range = np.array((np.min(fch4_soils_prior), np.max(fch4_soils_prior)))
+            fch4_soils_post.valid_range = np.array((np.min(fch4_soils_post), np.max(fch4_soils_post)))
+
             print('*** SUCCESS writing for ', invc, fout)
+            print('***** Check valid range')
+            # print('      Check prior tot', fch4_tot_prior.valid_range)
+            # print('      Check post  tot', fch4_tot_post.valid_range)
+            # print('      Check prior wet', fch4_wet_prior.valid_range)
+            # print('      Check post  wet', fch4_wet_post.valid_range)
+            # print('      Check prior bb', fch4_bb_prior.valid_range)
+            # print('      Check post  bb', fch4_bb_post.valid_range)
+            # print('      Check prior biofuel', fch4_biofuel_prior.valid_range)
+            # print('      Check post  biofuel', fch4_biofuel_post.valid_range)
+            # print('      Check prior oilgas', fch4_oilgas_prior.valid_range)
+            # print('      Check post  oilgas', fch4_oilgas_post.valid_range)
+            # print('      Check prior coal', fch4_coal_prior.valid_range)
+            # print('      Check post  coal', fch4_coal_post.valid_range)
+            # print('      Check prior agri', fch4_agri_prior.valid_range)
+            # print('      Check post  agri', fch4_agri_post.valid_range)
+            # print('      Check prior waste', fch4_waste_prior.valid_range)
+            # print('      Check post  waste', fch4_waste_post.valid_range)
+            # print('      Check prior geol', fch4_geol_prior.valid_range)
+            # print('      Check post  geol', fch4_geol_post.valid_range)
+            # print('      Check prior termite', fch4_termite_prior.valid_range)
+            # print('      Check post  termite', fch4_termite_post.valid_range)
+            # print('      Check prior oce', fch4_oce_prior.valid_range)
+            # print('      Check post  oce', fch4_oce_post.valid_range)
+            # print('      Check prior soils', fch4_soils_prior.valid_range)
+            # print('      Check post  soils', fch4_soils_post.valid_range)
+            def pr(name, arr):
+                v = arr.valid_range
+                print(f"      Check {name:<15} [{v[0]:.5f}, {v[1]:5f}]")
+
+            pr('prior tot', fch4_tot_prior)
+            pr('post  tot', fch4_tot_post)
+            pr('prior wet', fch4_wet_prior)
+            pr('post  wet', fch4_wet_post)
+            pr('prior bb', fch4_bb_prior)
+            pr('post  bb', fch4_bb_post)
+            pr('prior biofuel', fch4_biofuel_prior)
+            pr('post  biofuel', fch4_biofuel_post)
+            pr('prior oilgas', fch4_oilgas_prior)
+            pr('post  oilgas', fch4_oilgas_post)
+            pr('prior coal', fch4_coal_prior)
+            pr('post  coal', fch4_coal_post)
+            pr('prior agri', fch4_agri_prior)
+            pr('post  agri', fch4_agri_post)
+            pr('prior waste', fch4_waste_prior)
+            pr('post  waste', fch4_waste_post)
+            pr('prior geol', fch4_geol_prior)
+            pr('post  geol', fch4_geol_post)
+            pr('prior termite', fch4_termite_prior)
+            pr('post  termite', fch4_termite_post)
+            pr('prior oce', fch4_oce_prior)
+            pr('post  oce', fch4_oce_post)
+            pr('prior soils', fch4_soils_prior)
+            pr('post  soils', fch4_soils_post)
             nc.close()
 
         # ===========================================================
-        print(f'\tRun wrt_flux_cat')
-        print(f'\tApr flux from: {self.inv_apr_dir}')
-        print(f'\tPst flux from: {self.inv_pst_dir}')
+        print(f'\tApr flux from: {self.flx_apr_dir}')
+        print(f'\tPst flux from: {self.flx_pst_dir}')
         print(f'\tOutput *.nc file length: {self.nyear_nc} years for {self.years_nc} \n')
 
         for j1, invc in enumerate(self.invcases):
@@ -488,17 +582,20 @@ class WriteNcFlux(_set_case.SetCase):
             flx_join = get_joined_apr2post(flx_prior, flx_post)
 
             # - to write total
-            # ds = flx_join.sel(time=slice(f"{self.years_nc[0]}-01-01",
-            #                              f"{self.years_nc[1]}-12-31"))
-            # ds_ = check_total(ds)
-            # write_1nc_total(invc, ds_)
+            print('\n ==========================================================================')
+            print('>>>>>> Write Total')
+            ds = flx_join.sel(time=slice(f"{self.years_nc[0]}-01-01",
+                                         f"{self.years_nc[1]}-12-31"))
+            ds_ = check_total(ds)
+            write_1nc_total(invc, ds_)
 
             # - to write categ
+            print('\n\n ==========================================================================')
+            print('>>>>>> Write Category')
             ds_cat = get_post_categ(flx_prior, flx_join)
             ds = ds_cat.sel(time=slice(f"{self.years_nc[0]}-01-01",
                                        f"{self.years_nc[1]}-12-31"))
             ds_ = check_total(ds)
-            print(ds_)
             write_1nc_cat(invc, ds_)
             # todo
             # cellarea = nc.createVariable('carea', 'f4', ('lat', 'lon'))

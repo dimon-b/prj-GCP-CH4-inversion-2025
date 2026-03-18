@@ -153,9 +153,9 @@ class CnvFluxNc(_set_case.SetCase):
             ntime, nlat, nlon = da.shape
             assert ntime % self.nmonth == 0, "time is not divisible by 12"
             nyear = ntime // self.nmonth
-            print(f'Write *.grd for {nyear} years {nyear * 12} recs to {self.inv_apr_grd} ')
+            print(f'Write *.grd for {nyear} years {nyear * 12} recs to {self.flx_apr_grd} ')
 
-            with open(self.inv_apr_grd, "wb") as f:
+            with open(self.flx_apr_grd, "wb") as f:
                 for iy in range(nyear):
                     for im in range(self.nmonth):
                         t = iy * self.nmonth + im

@@ -24,22 +24,22 @@ def main():
     # --- Convert input fluxes nc -> nc
     run = 0
     if run:
-        print('\t\t *-*-* Start c1_conflux_nc *-*-* ');        c1_conflux_nc.CnvFluxNc()
+        print('\t *-*-* Start c1_conflux_nc *-*-* ');        c1_conflux_nc.CnvFluxNc()
 
     # --- Convert input fluxes nc -> gt3
     #     Run FORTRAN f0_fch4_gcp25_nc2gt3_t42.f90
 
-    # --- Forward MIROC4-ACTM
+    # --- Forward MIROC4-ACTM with prior
 
     # --- Copy/Create obs file
     run = 0
     if run:
-        print('\t\t *-*-* Start c3_obs_files *-*-* ');        c3_obs_files.ObsFilesTxt()
+        print('\t *-*-* Start c3_obs_files *-*-* ');        c3_obs_files.ObsFilesTxt()
 
     # --- INCA OH
-    run = 1
+    run = 0
     if run:
-        print('\t\t *-*-* Start i1_inca_OH *-*-* ');        i1_inca_OH.CnvOHNc()
+        print('\t *-*-* Start i1_inca_OH *-*-* ');        i1_inca_OH.CnvOHNc()
 
     # --- Run FORTRAN f2_actm_ch4_at_obs_sites.f90
     # --- Run FORTRAN f3_combch4_obs_actm.f90
@@ -54,17 +54,19 @@ def main():
     # ---
     run = 0
     if run:
-        print('\n\t *-*-*-*-* Start Server *-*-*-*-* ');     s0_server.ServerPart()
+        print('\t *-*-*-*-* Start Server *-*-*-*-* ');     s0_server.ServerPart()
+
+    # --- Forward MIROC4-ACTM with posterior
 
     # ---
-    run = 0
+    run = 1
     if run:
-        print('\n\t *-*-*-*-* Start Submission *-*-*-*-* '); t0_submit.Write2Submit()
+        print('\t *-*-*-*-* Start Submission *-*-*-*-* '); t0_submit.Write2Submit()
 
     # --- validation conc using ground-based obs
     run = 0
     if run:
-        print('\t\t *-*-*-*-* Start Validation *-*-*-*-* '); v1_valid_surf.ConcValSurf()
+        print('\t *-*-*-*-* Start Validation *-*-*-*-* '); v1_valid_surf.ConcValSurf()
 
     print('\nScript done!')
 
