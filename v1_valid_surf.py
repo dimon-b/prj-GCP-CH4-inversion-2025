@@ -18,29 +18,29 @@ class ConcValSurf(_set_case.SetCase):
         super().__init__()
         '''Used here dataset prepared by apack project'''
 
-        self.target_cols = ['pri_cyc', 'pri_iav', 'pst_cyc', 'pst_iav']
-        self.target_labs = ['Prior CYC', 'Prior IAV', 'Post CYC', 'Post IAV']
+        self.target_cols = ['apr_cyc', 'apr_inc', 'pst_cyc', 'pst_inc']
+        self.target_labs = ['Prior CYC', 'Prior INCA', 'Post CYC', 'Post INCA']
 
-        self.target_cols = ['pri_gcp', 'pst_gcp']
-        self.target_labs = ['Prior GCP', 'Post GCP']
-        #
-        # self.target_cols = ['pri_iav',  'pst_iav']
-        # self.target_labs = [ 'Prior IAV',  'Post IAV']
+        # self.target_cols = ['apr_cyc', 'pst_cyc']
+        # self.target_labs = ['Prior CYC', 'Post CYC']
+
+        # self.target_cols = ['apr_inc',  'pst_inc']
+        # self.target_labs = [ 'Prior INC',  'Post INC']
 
         df_j = self.get_4mod_df()
-        df_j = df_j[df_j['year'] < 2009]
+        # df_j = df_j[df_j['year'] < 2009]
         print(df_j)
         df_r = self.get_corr_sd(df_j)
         # self.prt_table(df_r)
         self.plt_corr_sd(df_r)
 
-        # self.plot_ts(df_j, 'ALT')
-        # self.plot_ts(df_j, 'SPO')
-        # self.plot_ts(df_j, 'BHD')
-        # self.plot_ts(df_j, 'SMO')
-        # self.plot_ts(df_j, 'DEM')
-        # self.plot_ts(df_j, 'MNM')
-        # self.plot_ts(df_j, 'BRW')
+        self.plot_ts(df_j, 'ALT')
+        self.plot_ts(df_j, 'SPO')
+        self.plot_ts(df_j, 'BHD')
+        self.plot_ts(df_j, 'SMO')
+        self.plot_ts(df_j, 'DEM')
+        self.plot_ts(df_j, 'MNM')
+        self.plot_ts(df_j, 'BRW')
         # self.plt_site_map(df_r)
 
         # with pd.option_context('display.max_rows', None):
@@ -324,7 +324,7 @@ class ConcValSurf(_set_case.SetCase):
                     sd_diff = np.nan
                     slope = np.nan
 
-                if (corr > 0.045) & (sd_diff < 80) & (slope > 0.45) & (lat < 990):
+                if (corr > 0.045) & (sd_diff < 100) & (slope > 0.0) & (lat < 990):
                 # if (corr > -0.99) & (sd_diff < 180) & (slope > -0.99) & (lat < 990):
                     stats[f'corr_{col}'] = corr
                     stats[f'sd_{col}'] = sd_diff
@@ -387,10 +387,10 @@ class ConcValSurf(_set_case.SetCase):
         # Plotting
         plt.figure(figsize=(10, 6))
         plt.plot(df_site["date"], df_site["o_ch4"], label="Observed (o_ch4)")
-        plt.plot(df_site["date"], df_site["pri_gcp"], label="Prior (CYC)")
-        # plt.plot(df_site["date"], df_site["pri_iav"], label="Prior (AIV)")
-        plt.plot(df_site["date"], df_site["pst_gcp"], label="Posterior (CYC)")
-        # plt.plot(df_site["date"], df_site["pst_iav"], label="Posterior (AIV)")
+        plt.plot(df_site["date"], df_site["apr_cyc"], label="Prior (CYC)")
+        plt.plot(df_site["date"], df_site["apr_inc"], label="Prior (AIV)")
+        plt.plot(df_site["date"], df_site["pst_cyc"], label="Posterior (CYC)")
+        plt.plot(df_site["date"], df_site["pst_inc"], label="Posterior (AIV)")
 
         plt.title(f"CH₄ Time Series at {site_}")
         plt.xlabel("Date")

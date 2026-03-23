@@ -59,12 +59,12 @@ def main():
     # --- Forward MIROC4-ACTM with posterior
 
     # ---
-    run = 1
+    run = 0
     if run:
         print('\t *-*-*-*-* Start Submission *-*-*-*-* '); t0_submit.Write2Submit()
 
     # --- validation conc using ground-based obs
-    run = 0
+    run = 1
     if run:
         print('\t *-*-*-*-* Start Validation *-*-*-*-* '); v1_valid_surf.ConcValSurf()
 

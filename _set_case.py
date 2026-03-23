@@ -91,8 +91,10 @@ class SetCase():
 
 
         # - concentration
-        self.conc_cases = [('pri_gcp', 'D:/dbase/ACTM/CH4_t42l67_CYC_JRA3Q_M_260115/'),
-                           ('pst_gcp', 'D:/dbase/ACTM/CH4_t42l67_CYC_JRA3Q_M_260131_post/'),
+        self.conc_cases = [('apr_cyc', 'D:/dbase/ACTM/CH4_t42l67_CYC_M_260115/'),
+                           ('pst_cyc', 'D:/dbase/ACTM/CH4_t42l67_CYC_M_post_260302/'),
+                           ('apr_inc', 'D:/dbase/ACTM/CH4_t42l67_INCA_M_260307/'),
+                           ('pst_inc', 'D:/dbase/ACTM/CH4_t42l67_INCA_M_post_260311/'),
                            ]
 
     # ---
