@@ -20,8 +20,8 @@ class WriteNcLoss(_set_case.SetCase):
 
     def __init__(self):
         super().__init__()
-        self.invcases = ['inv1', 'inv7', 'vCao']
-        self.dirs = ['../runs/pr_gcp_brw/', '../runs/pr_gcp_brw_OH/']  # res_check
+        self.invcases = ['inv1']  # , 'inv7', 'vCao']
+        self.dirs = ['../results2025/CYC/']
 
         for dir in self.dirs:
             self.wrt_loss_nc(dir)
@@ -36,18 +36,21 @@ class WriteNcLoss(_set_case.SetCase):
 
     def read_loss_txt(self, dir, invc):
         def get_1file(ifile):
-            df = pd.read_csv(ifile, delim_whitespace=True, skiprows=0)
+            df = pd.read_csv(ifile, sep='\s+', skiprows=0)
             print(df)
             return df
 
-        ifile = dir + 'losscorr' + '/' + 'gcp_loss_apr_' + invc + '.txt'
+        ifile = dir + 'losscorr/' + 'sink_prior_' + invc + '.txt'
         print(f'\tRead ifile: {ifile}')
         df_apr = get_1file(ifile)
+        print(df_apr.head())
         df_apr.columns = ['year', 'month',
                           'OH_tot_loss_prior', 'Cl_tot_loss_prior', 'O1D_tot_loss_prior',
                           'OH_SH_loss_prior', 'Cl_SH_loss_prior', 'O1D_SH_loss_prior',
                           'OH_NH_loss_prior', 'Cl_NH_loss_prior', 'O1D_NH_loss_prior',
-                          'OH_strat_loss_prior', 'Cl_strat_loss_prior', 'O1D_strat_loss_prior']
+                          'OH_strat_loss_prior', 'Cl_strat_loss_prior', 'O1D_strat_loss_prior',
+                          'OH_tropo_loss_prior', 'Cl_tropo_loss_prior', 'O1D_tropo_loss_prior',
+                          ]
         print(df_apr)
         df_apr_1 = df_apr.copy()
         df_apr_1['OH_tot_loss_ck'] = df_apr_1['OH_SH_loss_prior'] + df_apr_1['OH_NH_loss_prior']
@@ -64,22 +67,36 @@ class WriteNcLoss(_set_case.SetCase):
         df_apr_1[['O1D_tot_loss_prior', 'O1D_SH_loss_prior', 'O1D_NH_loss_prior', 'O1D_tot_loss_ck']].plot()
         print(df_apr_1[['O1D_tot_loss_prior', 'O1D_SH_loss_prior', 'O1D_NH_loss_prior', 'O1D_tot_loss_ck']])
         plt.show()
+        # exit()
 
-        ifile = dir + 'res_check' + '/' + 'gcp_loss_pst_' + invc + '.txt'
+        ifile = dir +  'losscorr/' + 'sink_post_' + invc + '.txt'
         print(f'\tRead ifile: {ifile}')
         df_pst = get_1file(ifile)
         df_pst.columns = ['year', 'month',
                           'OH_tot_loss_post', 'Cl_tot_loss_post', 'O1D_tot_loss_post',
                           'OH_SH_loss_post', 'Cl_SH_loss_post', 'O1D_SH_loss_post',
                           'OH_NH_loss_post', 'Cl_NH_loss_post', 'O1D_NH_loss_post',
-                          'OH_strat_loss_post', 'Cl_strat_loss_post', 'O1D_strat_loss_post']
+                          'OH_strat_loss_post', 'Cl_strat_loss_post', 'O1D_strat_loss_post',
+                          'OH_tropo_loss_post', 'Cl_tropo_loss_post', 'O1D_tropo_loss_post',
+                          ]
 
-        return df_apr, df_pst
+        def cat_time(df_):
+            df_['date'] = pd.to_datetime(dict(year=df_.year, month=df_.month, day=1))
+            df_ = df_.set_index('date')
+            df_ = df_.loc['2000-01':'2024-12']
+            return df_
+
+        return cat_time(df_apr), cat_time(df_pst)
 
     # ===
     def write_1nc(self, invc, apr, pst, dir):
 
-        fout = dir + 'nc_out' + '/' + '/MIROC4-ACTM_sink_' + invc + 'SURF.nc'
+        fout = self.flx_ncd_dir + '/MIROC4-ACTM_sink_GMB_SURF_OH_Transcom.nc'
+        if self.hcase == 'CYC':
+            fout = self.flx_ncd_dir + '/MIROC4-ACTM_sink_GMB_SURF_OH_Transcom.nc'
+        elif self.hcase == 'INCA':
+            fout = self.flx_ncd_dir + '/MIROC4-ACTM_sink_GMB_SURF_OH_INCA.nc'
+
         nc = netCDF4.Dataset(fout, 'w', format='NETCDF4')
         nc.description = 'The prior and posteor CH4 loss resulted from the surface based inversion for GCP-CH4, 2021. The results are produced at JAMSTEC, Japan. For details please contact at prabir@jamstec.go.jp and d.belikov@chiba-u.jp.'
         nc.Institution = 'Japan Agency for Marine-Earth Science and Technology (JAMSTEC)'
@@ -149,40 +166,40 @@ class WriteNcLoss(_set_case.SetCase):
         O1D_strat_loss_post[:] = pst['OH_strat_loss_post']
 
         # --- date-time
-        dd = []
-        for ym in np.arange(self.years[0], self.years[1] + 1, 1):
-            for mm in np.arange(1, 13, 1):
-                dd.append(datetime(int(ym), int(mm), int(self.mdays[mm - 1])))
-        dt = date2num(dd, units=time.units, calendar=time.calendar)
-        time[:] = dt[:]
+        dd = [            datetime(year, month, self.mdays[month - 1])
+            for year in range(self.years_nc[0], self.years_nc[1] + 1)
+            for month in range(1, 13)        ]
+        time[:] = date2num(dd, units=time.units, calendar=time.calendar)
+        # print(time)
+        # print(time[:].min(), time[:].max())
+        # exit()
 
         # --- units
-        OH_tot_loss_prior.units = 'g-CH4/m2/month'
-        OH_SH_loss_prior.units = 'g-CH4/m2/month'
-        OH_NH_loss_prior.units = 'g-CH4/m2/month'
-        OH_strat_loss_prior.units = 'g-CH4/m2/month'
-        Cl_tot_loss_prior.units = 'g-CH4/m2/month'
-        Cl_SH_loss_prior.units = 'g-CH4/m2/month'
-        Cl_NH_loss_prior.units = 'g-CH4/m2/month'
-        Cl_strat_loss_prior.units = 'g-CH4/m2/month'
-        O1D_tot_loss_prior.units = 'g-CH4/m2/month'
-        O1D_SH_loss_prior.units = 'g-CH4/m2/month'
-        O1D_NH_loss_prior.units = 'g-CH4/m2/month'
-        O1D_strat_loss_prior.units = 'g-CH4/m2/month'
+        OH_tot_loss_prior.units = 'TgCH4/month'
+        OH_SH_loss_prior.units = 'TgCH4/month'
+        OH_NH_loss_prior.units = 'TgCH4/month'
+        OH_strat_loss_prior.units = 'TgCH4/month'
+        Cl_tot_loss_prior.units = 'TgCH4/month'
+        Cl_SH_loss_prior.units = 'TgCH4/month'
+        Cl_NH_loss_prior.units = 'TgCH4/month'
+        Cl_strat_loss_prior.units = 'TgCH4/month'
+        O1D_tot_loss_prior.units = 'TgCH4/month'
+        O1D_SH_loss_prior.units = 'TgCH4/month'
+        O1D_NH_loss_prior.units = 'TgCH4/month'
+        O1D_strat_loss_prior.units = 'TgCH4/month'
 
-        OH_tot_loss_post.units = 'g-CH4/m2/month'
-        OH_SH_loss_post.units = 'g-CH4/m2/month'
-        OH_NH_loss_post.units = 'g-CH4/m2/month'
-        OH_strat_loss_post.units = 'g-CH4/m2/month'
-        Cl_tot_loss_post.units = 'g-CH4/m2/month'
-        Cl_SH_loss_post.units = 'g-CH4/m2/month'
-        Cl_NH_loss_post.units = 'g-CH4/m2/month'
-        Cl_strat_loss_post.units = 'g-CH4/m2/month'
-        O1D_tot_loss_post.units = 'g-CH4/m2/month'
-        O1D_SH_loss_post.units = 'g-CH4/m2/month'
-        O1D_NH_loss_post.units = 'g-CH4/m2/month'
-        O1D_strat_loss_post.units = 'g-CH4/m2/month'
-
+        OH_tot_loss_post.units = 'TgCH4/month'
+        OH_SH_loss_post.units = 'TgCH4/month'
+        OH_NH_loss_post.units = 'TgCH4/month'
+        OH_strat_loss_post.units = 'TgCH4/month'
+        Cl_tot_loss_post.units = 'TgCH4/month'
+        Cl_SH_loss_post.units = 'TgCH4/month'
+        Cl_NH_loss_post.units = 'TgCH4/month'
+        Cl_strat_loss_post.units = 'TgCH4/month'
+        O1D_tot_loss_post.units = 'TgCH4/month'
+        O1D_SH_loss_post.units = 'TgCH4/month'
+        O1D_NH_loss_post.units = 'TgCH4/month'
+        O1D_strat_loss_post.units = 'TgCH4/month'
 
         print('*** SUCCESS writing for ', invc)
         nc.close()

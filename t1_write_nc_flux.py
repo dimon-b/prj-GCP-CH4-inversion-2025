@@ -4,7 +4,6 @@ Created:    22/01/26 19:17
 Project:    Write total fCH4 *.nc for GCP2021 as originally created by Naveen Negi
 @author:    Dmitry Belikov
 """
-from datetime import datetime
 import netCDF4
 import numpy as np
 import pandas as pd
@@ -24,7 +23,7 @@ class WriteNcFlux(_set_case.SetCase):
 
         self.unp = 'p30'
         self.unx = 'ctl'
-        self.flx_ncd_dir = self.flx_pst_dir + self.hcase + '/nc_out/'
+        # self.flx_ncd_dir = self.flx_pst_dir + self.hcase + '/nc_out/'
         self.write_submission_flux()
 
     # --- write flux categories
@@ -54,7 +53,8 @@ class WriteNcFlux(_set_case.SetCase):
 
             # ===========================================================
             # - post
-            i_file = self.flx_pst_dir + self.hcase + '/flux2d/' + unp + '/' + self.icase + '_' + unx + '_' + invc + '.grd'
+            # i_file = self.flx_pst_dir + self.hcase + '/flux2d/' + unp + '/' + self.icase + '_' + unx + '_' + invc + '.grd'
+            i_file = self.flx_pst_dir + unp + '/' + self.icase + '_' + unx + '_' + invc + '.grd'
             print('\tPosterior flux reading: ', invc, i_file)
             flx = read_flx_bin(i_file)
             flx1 = cor_shape(flx)

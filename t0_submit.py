@@ -15,10 +15,10 @@ class Write2Submit(_set_case.SetCase):
         super().__init__()
 
         # --- write total and category fluxes
-        print('\n\t *-*-*-*-* Start t1_write_nc_tot *-*-*-*-* ');   t1_write_nc_flux.WriteNcFlux()
+        # print('\n\t *-*-*-*-* Start t1_write_nc_tot *-*-*-*-* ');   t1_write_nc_flux.WriteNcFlux()
 
         # --- write loss for a priori and a posteriori; run s4_ch4_loss.f90
-        # print('\n\t *-*-*-*-* Start t3_write_nc_sink *-*-*-*-* ');  t3_write_nc_sink.WriteNcLoss()
+        print('\n\t *-*-*-*-* Start t3_write_nc_sink *-*-*-*-* ');  t3_write_nc_sink.WriteNcLoss()
 
         # --- write 3D conc
         # print('\n\t *-*-*-*-* Start t2_write_nc_cat *-*-*-*-* ');   t4_write_3D_conc.WriteNcCat()
