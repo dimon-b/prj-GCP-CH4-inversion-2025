@@ -48,7 +48,7 @@ def main():
     # --- Run FORTRAN digi_filt/main_actmstn.f90
     # --- Run FORTRAN f7_write_tdi_obsrvCH4dif.f90
 
-    # --- Run invertion
+    # --- Run inversion
     #     codeint54
 
     # ---
