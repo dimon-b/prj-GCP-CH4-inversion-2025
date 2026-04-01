@@ -27,7 +27,6 @@ class WriteNcLoss(_set_case.SetCase):
             self.wrt_loss_nc(dir)
 
     def wrt_loss_nc(self, dir):
-        print(f'\tRun wrt_loss_nc')
         print(f'\tRun wrt_loss_nc for: {dir}')
 
         for j1, invc in enumerate(self.invcases[:]):
