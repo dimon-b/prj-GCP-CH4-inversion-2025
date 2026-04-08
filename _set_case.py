@@ -45,12 +45,12 @@ class SetCase():
     # --- path
     def def_path(self):
         # - inp fluxes
-        self.flx_inp_dir = 'D:/dbase/fluxes/gcp2025_flux_inp/'
+        self.flx_inp_dir = 'D:/OneDrive - 国立大学法人千葉大学/dbase/fluxes/gcp2025_flux_inp/'
         # self.flx_inp_dir = '/S/data01/G5070/y0715/prj_GCP_v25/fluxes/gcp2025_flux_inp/'
         self.flx_inp_nc = 'GCP_Prior_CH4_fluxes.nc'
 
         # - prior fluxes
-        self.flx_apr_dir = 'D:/dbase/fluxes/gcp2025_flux_prior/'
+        self.flx_apr_dir = 'D:/OneDrive - 国立大学法人千葉大学/prj_GCP_v25/fluxes/gcp2025_flux_prior/'
         self.flx_apr_nc = "gcp25_inv1.nc"  # total only to convert to gt3
         self.flx_apr_nc_full = "gcp25_inv1_full.nc"  # full components
         self.flx_apr_grd = self.flx_apr_dir + 'fch4_gcp2025_prior_inv1.grd'
@@ -63,7 +63,7 @@ class SetCase():
 
         # -
         self.inc_OH_inp_dir = '/S/data01/G5070/y0715/prj_GCP_v25/fluxes/gcp2025_flux_inp/LOSS_FIELDS/OH_INCA/Scaled'
-        self.inc_OH_dir = 'D:/dbase/fluxes/gcp2025_OH/'
+        self.inc_OH_dir = 'D:/OneDrive - 国立大学法人千葉大学/dbase/fluxes/gcp2025_OH/'
 
         # - obs
         self.obs_dir = 'D:/OneDrive - 国立大学法人千葉大学/prj_apack/obs/'

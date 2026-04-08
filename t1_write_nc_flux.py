@@ -18,25 +18,27 @@ class WriteNcFlux(_set_case.SetCase):
 
     def __init__(self):
         super().__init__()
+
         self.invcases = ['inv1']
         self.flxcases = ['gcp2021_v2_soil0_inv1']
-
+        self.dirs = ['../results2025/CYC/', '../results2025/INCA/']
         self.unp = 'p30'
         self.unx = 'ctl'
-        # self.flx_ncd_dir = self.flx_pst_dir + self.hcase + '/nc_out/'
-        self.write_submission_flux()
+
+        #
+        for d in self.dirs:
+            self.write_submission_flux(d)
 
     # --- write flux categories
-    def write_submission_flux(self):
-        # - get_post_flx_grd
+    def write_submission_flux(self, dir_):
+        # ---
         def get_post_flx_grd(unp, unx, invc_):
-            # - read bin
+            # -
             def read_flx_bin(bfile):
                 size_2d = self.d1_nlon * self.d1_nlat * self.nmonth
                 with open(bfile, 'rb') as f:
                     fl2d = np.fromfile(f, dtype='<f4', count=size_2d * self.nyear_nc
                                        ).reshape(self.nyear_nc, self.nmonth, self.d1_nlat, self.d1_nlon)
-
                 print(f'\t\tpost flux shape from grd file: {fl2d.shape}')
                 return fl2d
 
@@ -53,8 +55,7 @@ class WriteNcFlux(_set_case.SetCase):
 
             # ===========================================================
             # - post
-            # i_file = self.flx_pst_dir + self.hcase + '/flux2d/' + unp + '/' + self.icase + '_' + unx + '_' + invc + '.grd'
-            i_file = self.flx_pst_dir + unp + '/' + self.icase + '_' + unx + '_' + invc_ + '.grd'
+            i_file = dir_ + 'flux2d/' + unp + '/' + self.icase + '_' + unx + '_' + invc_ + '.grd'
             print('\tPosterior flux reading: ', invc_, i_file)
             flx = read_flx_bin(i_file)
             flx1 = cor_shape(flx)
@@ -63,18 +64,8 @@ class WriteNcFlux(_set_case.SetCase):
         # - get_prior_full_flx_nc
         def get_prior_full_flx_nc():
             path = self.flx_apr_dir + self.flx_apr_nc_full
-            ds_1 = xr.open_dataset(path, decode_times=False)
+            ds_1 = xr.open_dataset(path, engine="h5netcdf", decode_times=False)
             return ds_1
-
-        # def get_prior_full_flx_nc():
-        #     # --- get_inp_nc
-        #     def get_prior_full_nc():
-        #         path = self.flx_apr_dir + self.flx_apr_nc_full
-        #         ds_ = xr.open_dataset(path, decode_times=False)
-        #         return ds_
-        #
-        #     ds = get_prior_full_nc()
-        #     return ds
 
         # - get_joined_apr2post
         def get_joined_apr2post(apr, pst):
@@ -111,12 +102,12 @@ class WriteNcFlux(_set_case.SetCase):
             lat_rad = np.deg2rad(ds_i.lat)
 
             cell_area_2d = self.R ** 2 * dlat * dlon * np.cos(lat_rad)
-            # cell_area = cell_area_2d.broadcast_like(ds_i["fch4_total_prior"])
-            cell_area = xr.DataArray(
-                cell_area_2d,
-                coords=ds_i["fch4_total_prior"].isel(time=0).coords,
-                dims=ds_i["fch4_total_prior"].isel(time=0).dims,
-            ).broadcast_like(ds_i["fch4_total_prior"])
+            cell_area = cell_area_2d.broadcast_like(ds_i["fch4_total_prior"])
+            # cell_area = xr.DataArray(
+            #     cell_area_2d,
+            #     coords=ds_i["fch4_total_prior"].isel(time=0).coords,
+            #     dims=ds_i["fch4_total_prior"].isel(time=0).dims,
+            # ).broadcast_like(ds_i["fch4_total_prior"])
 
             # - Sanity check: total Earth surface area
             earth_area = cell_area.isel(time=0).sum(dim=("lat", "lon"))
@@ -127,16 +118,8 @@ class WriteNcFlux(_set_case.SetCase):
 
             # - Seconds per month [s]
             time = pd.to_datetime(ds_i.time.values)
-
-            ds_i["seconds_per_month"] = xr.DataArray(time.days_in_month * 24 * 3600,
-                                                     coords={"time": ds_i.time},
-                                                     dims=("time",),
-                                                     name="seconds_per_month",
-                                                     )
-
-            ds_i["seconds_per_month"].attrs.update(units="s",
-                                                   description="Number of seconds in each month",
-                                                   )
+            ds_i["seconds_per_month"] = (ds_i.time.dt.days_in_month * 24 * 3600).rename("seconds_per_month")
+            ds_i["seconds_per_month"].attrs.update(units="s", description="Number of seconds in each month", )
 
             # - Time since epoch [hours since 1970-01-01 00:00:00]
             epoch = pd.Timestamp("1970-01-01 00:00:00")
@@ -240,24 +223,24 @@ class WriteNcFlux(_set_case.SetCase):
         # - write_1nc_total
         def write_1nc_total(invc_, ds_1):
 
-            fout = self.flx_ncd_dir + '/MIROC4-ACTM_totflux_GMB_SURF_OH_Transcom.nc'
-            if self.hcase == 'CYC':
-                fout = self.flx_ncd_dir + '/MIROC4-ACTM_totflux_GMB_SURF_OH_Transcom.nc'
-            elif self.hcase == 'INCA':
-                fout = self.flx_ncd_dir + '/MIROC4-ACTM_totflux_GMB_SURF_OH_INCA.nc'
+            file_out = ''
+            if 'CYC' in dir_:
+                file_out = dir_ + 'nc_out/' + '/MIROC4-ACTM_totflux_GMB_SURF_OH_Transcom.nc'
+            elif 'INCA' in dir_:
+                file_out = dir_ + 'nc_out/' + '/MIROC4-ACTM_totflux_GMB_SURF_OH_INCA.nc'
 
-            nc = netCDF4.Dataset(fout, 'w', format='NETCDF4')
+            nc = netCDF4.Dataset(file_out, 'w', format='NETCDF4')
             nc.description = 'Net prior and posteor CH4 emissions resulted from the surface based inversion for GCP-CH4, 2025. The results are produced at JAMSTEC, Japan. For details please contact at prabir@jamstec.go.jp and d.belikov@chiba-u.jp.'
-            nc.Institution = 'Japan Agency for Marine-Earth Science and Technology (JAMSTEC)'
+            nc.Institution = 'Japan Agency for Marine-Earth Science and Technology (JAMSTEC) and Chiba University'
             nc.Contact = 'd.belikov@chiba-u.jp and prabir@jamstec.go.jp'
             nc.Disclaimer = 'This data is created for GCP-CH4 2025.'
-            nc.History = 'Created on January 2026 by Dmitry Belikov'
+            nc.History = 'April 2026'
             nc.Additional_Info = 'MIROC4.0-based Atmospheric Chemistry-Transport Model (MIROC4-ACTM) is used for forward simulations (Prabir et al., 2018) and Time-independent Bayesian inversion is used for optimising flux (Patra et al., 2016)'
 
             # --- set dimensions
-            # time_dim = nc.createDimension('time', None)
-            # lat_dim = nc.createDimension('lat', self.d1_nlat)
-            # lon_dim = nc.createDimension('lon', self.d1_nlon)
+            nc.createDimension('time', None)
+            nc.createDimension('lat', self.d1_nlat)
+            nc.createDimension('lon', self.d1_nlon)
 
             # --- set variables
             time = nc.createVariable('time', 'f4', ('time',))
@@ -277,8 +260,10 @@ class WriteNcFlux(_set_case.SetCase):
             lat[:] = self.d1_lats
             lon[:] = self.d1_lons
             cellarea[:] = self.garia_d1
-            fch4_prior[:, :, :] = ds_1['monthly_fch4_total_prior'].values
-            fch4_post[:, :, :] = ds_1['monthly_fch4_total_post'].values
+            fch4_prior[:, :, :] = ds_1['monthly_fch4_total_prior_soil0'].values
+            fch4_post[:, :, :] = ds_1['monthly_fch4_total_post_soil0'].values
+            # print(ds_1)
+            # exit()
 
             # --- date-time
             time[:] = ds_1["time_hours_since_1970"]
@@ -292,8 +277,8 @@ class WriteNcFlux(_set_case.SetCase):
             fch4_prior.valid_range = np.array((np.min(fch4_prior), np.max(fch4_prior)))
             fch4_post.valid_range = np.array((np.min(fch4_post), np.max(fch4_post)))
 
-            print('*** SUCCESS writing for ', invc, fout)
-            print('***** Check valid range')
+            print('\n SUCCESS writing total flux to >>> ', file_out)
+            print('\t Check valid range')
 
             def pr(name, arr):
                 v = arr.valid_range
@@ -380,24 +365,24 @@ class WriteNcFlux(_set_case.SetCase):
         # --- Write the netcdf file
         def write_1nc_cat(invc_, ds_1):
 
-            fout = self.flx_ncd_dir + '/MIROC4-ACTM_catflux_GMB_SURF_OH_Transcom.nc'
-            if self.hcase == 'CYC':
-                fout = self.flx_ncd_dir + '/MIROC4-ACTM_catflux_GMB_SURF_OH_Transcom.nc'
-            elif self.hcase == 'INCA':
-                fout = self.flx_ncd_dir + '/MIROC4-ACTM_catflux_GMB_SURF_OH_INCA.nc'
+            file_out = ''
+            if 'CYC' in dir_:
+                file_out = dir_ + 'nc_out/' + '/MIROC4-ACTM_catflux_GMB_SURF_OH_Transcom.nc'
+            elif 'INCA' in dir_:
+                file_out = dir_ + 'nc_out/' + '/MIROC4-ACTM_catflux_GMB_SURF_OH_INCA.nc'
 
-            nc = netCDF4.Dataset(fout, 'w', format='NETCDF4')
-            nc.description = 'Monthly category wise flux for GCP-CH4, 2025. The results are produced at JAMSTEC, Japan. For details please contact at prabir@jamstec.go.jp and d.belikov@chiba-u.jp.'
-            nc.Institution = 'Japan Agency for Marine-Earth Science and Technology (JAMSTEC)'
+            nc = netCDF4.Dataset(file_out, 'w', format='NETCDF4')
+            nc.description = 'Net prior and posteor CH4 emissions resulted from the surface based inversion for GCP-CH4, 2025. The results are produced at JAMSTEC, Japan. For details please contact at prabir@jamstec.go.jp and d.belikov@chiba-u.jp.'
+            nc.Institution = 'Japan Agency for Marine-Earth Science and Technology (JAMSTEC) and Chiba University'
             nc.Contact = 'd.belikov@chiba-u.jp and prabir@jamstec.go.jp'
             nc.Disclaimer = 'This data is created for GCP-CH4 2025.'
-            nc.History = 'Created on January 2026 by Dmitry Belikov'
+            nc.History = 'April 2026'
             nc.Additional_Info = 'MIROC4.0-based Atmospheric Chemistry-Transport Model (MIROC4-ACTM) is used for forward simulations (Prabir et al., 2018) and Time-independent Bayesian inversion is used for optimising flux (Patra et al., 2016)'
 
             # --- set dimensions
-            # time_dim = nc.createDimension('time', None)
-            # lat_dim = nc.createDimension('lat', self.d1_nlat)
-            # lon_dim = nc.createDimension('lon', self.d1_nlon)
+            nc.createDimension('time', None)
+            nc.createDimension('lat', self.d1_nlat)
+            nc.createDimension('lon', self.d1_nlon)
 
             # --- set variables
             time = nc.createVariable('time', 'f4', ('time',))
@@ -489,10 +474,8 @@ class WriteNcFlux(_set_case.SetCase):
             for v in flux_vars:
                 v.units = 'g-CH4/m2/month'
 
-            print('*** SUCCESS writing for ', invc_, fout)
-            nc.close()
-
-            print('***** Check valid range')
+            print('\n SUCCESS writing total flux to >>> ', file_out)
+            print('\t Check valid range')
             flux_pairs = {
                 'tot': (fch4_tot_prior, fch4_tot_post),
                 'wet': (fch4_wet_prior, fch4_wet_post),
@@ -520,9 +503,12 @@ class WriteNcFlux(_set_case.SetCase):
                 pr(f'prior {name}', prior)
                 pr(f'post  {name}', post)
 
+            nc.close()
+
         # ===========================================================
+        print('\n==========================================================================')
         print(f'\tApr flux from: {self.flx_apr_dir}')
-        print(f'\tPst flux from: {self.flx_pst_dir}')
+        print(f'\tPst flux from: {dir()}')
         print(f'\tOutput *.nc file length: {self.nyear_nc} years for {self.years_nc} \n')
 
         for j1, invc in enumerate(self.invcases):
@@ -531,16 +517,16 @@ class WriteNcFlux(_set_case.SetCase):
             flx_join = get_joined_apr2post(flx_prior, flx_post)
 
             # - to write total
-            print('\n ==========================================================================')
-            print('>>>>>> Write Total')
+            print('\n>>>>>>>>>>>>')
+            print('\t>>>>>> Write Total')
             ds = flx_join.sel(time=slice(f"{self.years_nc[0]}-01-01",
                                          f"{self.years_nc[1]}-12-31"))
             ds_ = check_total(ds)
             write_1nc_total(invc, ds_)
 
             # - to write categ
-            print('\n\n ==========================================================================')
-            print('>>>>>> Write Category')
+            print('\n>>>>>>>>>>>>')
+            print('\t>>>>>> Write Category')
             ds_cat = get_post_categ(flx_prior, flx_join)
             ds = ds_cat.sel(time=slice(f"{self.years_nc[0]}-01-01",
                                        f"{self.years_nc[1]}-12-31"))

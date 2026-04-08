@@ -54,19 +54,19 @@ def main():
     # ---
     run = 0
     if run:
-        print('\t *-*-*-*-* Start Server *-*-*-*-* ');     s0_server.ServerPart()
+        print('\t *-*-* Start Server *-*-* ');     s0_server.ServerPart()
 
     # --- Forward MIROC4-ACTM with posterior
 
     # ---
     run = 1
     if run:
-        print('\t *-*-*-*-* Start Submission *-*-*-*-* '); t0_submit.Write2Submit()
+        print('\t *-*-* Start Submission *-*-* '); t0_submit.Write2Submit()
 
     # --- validation conc using ground-based obs
     run = 0
     if run:
-        print('\t *-*-*-*-* Start Validation *-*-*-*-* '); v1_valid_surf.ConcValSurf()
+        print('\t *-*-* Start Validation *-*-* '); v1_valid_surf.ConcValSurf()
 
     print('\nScript done!')
 
