@@ -33,7 +33,7 @@ class ServerPart(_set_case.SetCase):
             #print('\n\t *-*-*-*-* Start s4_write_gt3 *-*-*-*-* ');     s4_write_gt3.Write_gt3()
 
             # --- check GT, Loss, Loss Correction
-            print('\n\t *-*-*-*-* Start s5_LossCorrPlt *-*-*-*-* ');     s5_LossCorrPlt.LossCorrPlot()
+            #print('\n\t *-*-*-*-* Start s5_LossCorrPlt *-*-*-*-* ');     s5_LossCorrPlt.LossCorrPlot()
 
 
 

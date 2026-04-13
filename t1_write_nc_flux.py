@@ -37,24 +37,25 @@ class WriteNcFlux(_set_case.SetCase):
             def read_flx_bin(bfile):
                 size_2d = self.d1_nlon * self.d1_nlat * self.nmonth
                 with open(bfile, 'rb') as f:
-                    fl2d = np.fromfile(f, dtype='<f4', count=size_2d * self.nyear_nc
-                                       ).reshape(self.nyear_nc, self.nmonth, self.d1_nlat, self.d1_nlon)
-                print(f'\t\tpost flux shape from grd file: {fl2d.shape}')
+                    fl2d = np.fromfile(f, dtype='<f4', count=size_2d * nyear
+                                       ).reshape(nyear, self.nmonth, self.d1_nlat, self.d1_nlon)
+                print(f'\t\t Post flux shape from grd file: {fl2d.shape}')
                 return fl2d
 
             # - flux shape correction [yr, mn, :, :] -> [time, :, :]
             def cor_shape(flx_):
-                flx1_ = np.zeros([self.nyear_nc * self.nmonth, self.d1_nlat, self.d1_nlon])
-                for yr in np.arange(self.nyear_nc):
+                flx1_ = np.zeros([nyear * self.nmonth, self.d1_nlat, self.d1_nlon])
+                for yr in np.arange(nyear):
                     for mn in np.arange(self.nmonth):
                         ss = yr * self.nmonth + mn
                         flx1_[ss, :, :] = flx_[yr, mn, :, :]
-                print(f'\t\tpost flux shape after reshaping: {flx1_.shape}, '
+                print(f'\t\t Post flux shape after reshaping: {flx1_.shape}, '
                       f'time length: {self.nyear_nc * self.nmonth}, years: {self.nyear_nc}, months: {self.nmonth}')
                 return flx1_
 
             # ===========================================================
             # - post
+            nyear = self.yr_e - self.yr_s + 1
             i_file = dir_ + 'flux2d/' + unp + '/' + self.icase + '_' + unx + '_' + invc_ + '.grd'
             print('\tPosterior flux reading: ', invc_, i_file)
             flx = read_flx_bin(i_file)
@@ -71,13 +72,7 @@ class WriteNcFlux(_set_case.SetCase):
         def get_joined_apr2post(apr, pst):
             # - soil from apr
             apr_soil = apr["flux_ch4_soils"]
-
-            # - extend pst
-            pst_ext = np.concatenate([pst[:12], pst, pst[-12:], ], axis=0, )
-
-            # - pst_ext into a DataArray
-            pst_da = xr.DataArray(xr.where(pst_ext < 0, 0.0, pst_ext), dims=apr_soil.dims, coords=apr_soil.coords,
-                                  name="pst")
+            pst_da = xr.DataArray(pst, dims=apr_soil.dims, coords=apr_soil.coords, name="pst")
             assert pst_da.shape == apr_soil.shape
             assert pst_da.time.equals(apr_soil.time)
 
@@ -226,8 +221,10 @@ class WriteNcFlux(_set_case.SetCase):
             file_out = ''
             if 'CYC' in dir_:
                 file_out = dir_ + 'nc_out/' + '/MIROC4-ACTM_totflux_GMB_SURF_OH_Transcom.nc'
+                file_out = dir_ + 'nc_out/' + '/MIROC4-ACTM_totflux_GMB_SURF_OH_Transcom_soil.nc'
             elif 'INCA' in dir_:
                 file_out = dir_ + 'nc_out/' + '/MIROC4-ACTM_totflux_GMB_SURF_OH_INCA.nc'
+                file_out = dir_ + 'nc_out/' + '/MIROC4-ACTM_totflux_GMB_SURF_OH_INCA_soil.nc'
 
             nc = netCDF4.Dataset(file_out, 'w', format='NETCDF4')
             nc.description = 'Net prior and posteor CH4 emissions resulted from the surface based inversion for GCP-CH4, 2025. The results are produced at JAMSTEC, Japan. For details please contact at prabir@jamstec.go.jp and d.belikov@chiba-u.jp.'
@@ -260,8 +257,10 @@ class WriteNcFlux(_set_case.SetCase):
             lat[:] = self.d1_lats
             lon[:] = self.d1_lons
             cellarea[:] = self.garia_d1
-            fch4_prior[:, :, :] = ds_1['monthly_fch4_total_prior_soil0'].values
-            fch4_post[:, :, :] = ds_1['monthly_fch4_total_post_soil0'].values
+            # fch4_prior[:, :, :] = ds_1['monthly_fch4_total_prior_soil0'].values
+            # fch4_post[:, :, :] = ds_1['monthly_fch4_total_post_soil0'].values
+            fch4_prior[:, :, :] = ds_1['monthly_fch4_total_prior'].values
+            fch4_post[:, :, :] = ds_1['monthly_fch4_total_post'].values
             # print(ds_1)
             # exit()
 
