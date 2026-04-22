@@ -7,6 +7,10 @@ Project:    GCP/GMB 2025 project
 import numpy as np
 import pandas as pd
 import xarray as xr
+from matplotlib import gridspec
+import matplotlib.pyplot as plt
+import cartopy.crs as ccrs
+import regionmask
 import _set_case
 
 
@@ -26,29 +30,29 @@ class CnvFluxNc(_set_case.SetCase):
         # --- get_inp_nc
         def get_inp_nc():
             path = self.flx_inp_dir + self.flx_inp_nc
-            ds = xr.open_dataset(path, decode_times=False)
-            return ds
+            ds_ = xr.open_dataset(path, engine="h5netcdf", decode_times=False)
+            return ds_
 
         # --- manage_ds
-        def manage_ds(ds):
+        def manage_ds(ds_):
             # - get lengths
-            ntime = ds.sizes["time"]
-            nseason = ds.sizes["time_climato"]
+            ntime = ds_.sizes["time"]
+            nseason = ds_.sizes["time_climato"]
 
             # - make seasonal variables match the full time axis
             expanded = {}
-            for v in [v for v in ds.data_vars if "time_climato" in ds[v].dims]:
+            for v in [v for v in ds_.data_vars if "time_climato" in ds_[v].dims]:
                 # tile the seasonal data to match the time dimension
-                arr = ds[v]
+                arr = ds_[v]
                 reps = ntime // nseason
                 expanded[v] = xr.DataArray(
                     np.tile(arr.values, (reps, 1, 1)),  # repeat along time axis
                     dims=("time", "lat", "lon"),
-                    coords={"time": ds.time, "lat": ds.lat, "lon": ds.lon},
+                    coords={"time": ds_.time, "lat": ds_.lat, "lon": ds_.lon},
                     attrs=arr.attrs)
 
             # - keep the original "time" variables as they are
-            time_vars = {v: ds[v] for v in ds.data_vars if "time" in ds[v].dims}
+            time_vars = {v: ds_[v] for v in ds_.data_vars if "time" in ds_[v].dims}
 
             # - join
             ds_expanded = xr.Dataset({**time_vars, **expanded})
@@ -71,7 +75,10 @@ class CnvFluxNc(_set_case.SetCase):
             dlat = np.deg2rad(ds.lat[1] - ds.lat[0])
             dlon = np.deg2rad(ds.lon[1] - ds.lon[0])
             lat_rad = np.deg2rad(ds.lat)
-            cell_area_2d = (self.R ** 2 * dlat * dlon * np.cos(lat_rad))
+            # cell_area_2d = (self.R ** 2 * dlat * dlon * np.cos(lat_rad))
+            cell_area_2d = xr.DataArray(self.R ** 2 * dlat * dlon * np.cos(lat_rad),
+                                        coords={"lat": ds.lat},
+                                        dims=["lat"])
             cell_area = cell_area_2d.broadcast_like(ds["flux_ch4_wetlands"])
 
             # - sanity check: total Earth surface area
@@ -90,17 +97,17 @@ class CnvFluxNc(_set_case.SetCase):
                                              )
 
             # - Flux variables to integrate
-            FLUX_VARS = [v for v in ds.data_vars if v.startswith("flux_ch4_")]
+            flux_vars = [v for v in ds.data_vars if v.startswith("flux_ch4_")]
 
             # - Integration
             records = []
-            for var in FLUX_VARS:
+            for var in flux_vars:
                 # kg m-2 s-1 -> kg per month per grid cell
                 monthly_flux = ds[var] * cell_area * seconds_per_month
                 # global monthly sum [kg]
                 global_monthly = monthly_flux.sum(dim=("lat", "lon"))
                 # annual totals [Tg yr-1]
-                global_annual = (global_monthly.groupby("time.year").sum(dim="time") / 1e9)
+                global_annual = global_monthly.groupby("time.year").sum(dim="time") / 1e9
                 for year, value in zip(global_annual.year.values, global_annual.values):
                     records.append(
                         {"year": int(year), "variable": var.replace("flux_ch4_", ""), "Tg_CH4_yr": float(value), })
@@ -163,9 +170,95 @@ class CnvFluxNc(_set_case.SetCase):
                         slab = np.nan_to_num(slab, nan=0.0)
                         f.write(slab.tobytes(order="C"))
 
+        # -
+        def plt_map_flux_4panel(ds):
+            self.sites_uz_map = [('Karakalpakia', (44.78, 56.20)),
+                                 # ('Zhaslyk', (43.97, 57.51)),
+                                 ('Nukus', (42.48, 59.62)),
+                                 ('Chimbay', (42.94, 59.77)),
+                                 ('Muynak', (43.77, 59.02)),
+                                 ('Khiva', (41.38, 60.35)),
+                                 ('Buzauabay', (41.75, 62.47)),
+                                 ('Dzhangeldy', (40.85, 63.34)),
+                                 ('Karakul', (39.53, 63.86)),
+                                 ('Akbaytal', (43.18, 64.28)),
+                                 ('Bukhara', (39.76, 64.48)),
+                                 ('Tamdy', (41.74, 64.63)),
+                                 ('Navoi', (40.13, 65.35)),
+                                 ('Qarshi', (38.86, 65.82)),
+                                 ('Samarkand', (39.65, 66.95)),
+                                 ('Jizzakh', (40.12, 67.83)),
+                                 ('Termez', (37.25, 67.30)),
+                                 # ('Syrdarya', (40.83, 68.67)),
+                                 ('Tashkent', (41.33, 69.30)),
+                                 ('Almalyk', (40.84, 69.60)),
+                                 # ('Dukant', (41.1583, 70.0763)),
+                                 ('Oygaing', (42.17, 70.88)),
+                                 # ('Kokand', (40.5286, 70.9425)),
+                                 ('Fergana', (40.41, 71.80)),
+                                 # ('Namangan', (41.01, 71.72)),
+                                 # ('Andijan', (40.78, 72.34)),
+                                 ]
+            self.mpl_uz = [55.5, 73.5, 37, 46, 2, 2]
+            # self.mpl_uz = [45.5, 73.5, 30, 46, 2, 2]
+
+
+            period = [2010, 2020]
+            vars_plot = ["flux_ch4_livestock",
+                         "flux_ch4_oilgasind",
+                         "flux_ch4_waste",
+                         "flux_ch4_prior"]
+
+            # select period once
+            ds = ds.sel(time=ds.time.dt.year.isin(range(period[0], period[1] + 1)))
+
+            fig = plt.figure(figsize=(12, 8))
+            gs = gridspec.GridSpec(3, 2, height_ratios=[1, 1, 0.08], hspace=0.1, wspace=0.1)
+            axes = [fig.add_subplot(gs[0, 0], projection=ccrs.PlateCarree()),
+                    fig.add_subplot(gs[0, 1], projection=ccrs.PlateCarree()),
+                    fig.add_subplot(gs[1, 0], projection=ccrs.PlateCarree()),
+                    fig.add_subplot(gs[1, 1], projection=ccrs.PlateCarree())]
+            cax = fig.add_subplot(gs[2, :])
+
+            for ax, var in zip(axes, vars_plot):
+                da = ds[var]
+
+                # mean over time
+                da_plot = da.mean("time")
+
+                # --- prepare data ---
+                lon = da_plot["lon"].values
+                lat = da_plot["lat"].values
+                LON, LAT = np.meshgrid(lon, lat)
+                Z = da_plot.values*365.25 * 24 * 3600  # or 365.25 if you want
+
+                # --- levels (FIX scalar) ---
+                vmin = 0.0
+                vmax = 0.04
+
+                # --- plot WITHOUT contourf ---
+                im = ax.pcolormesh(LON, LAT, Z, transform=ccrs.PlateCarree(),
+                                   cmap="gnuplot2_r", vmin=vmin, vmax=vmax, shading="auto")
+
+                ax.set_title(var.replace("flux_ch4_", ""))
+                _set_case.add_map_feat(ax, self.mpl_uz, self.sites_uz_map)
+
+            cbar = plt.colorbar(im, cax=cax, orientation="horizontal")
+            pos = cax.get_position()
+            new_width = pos.width * 0.8
+            dx = (pos.width - new_width) / 2
+            cax.set_position([pos.x0 + dx, pos.y0, new_width, pos.height])
+            cbar.set_label("kg m$^{-2}$ yr$^{-1}$")
+
+            # plt.savefig(self.plt_dir + 'flux_4panel.png', dpi=600, bbox_inches='tight')
+            plt.show()
+            plt.close()
+            ds.close()
+
         # =======================================
-        ds = get_inp_nc()
-        ds_ = manage_ds(ds)
-        check_total(ds_)
-        ds_nc = write_nc(ds_)
-        write_grd(ds_nc, dtype=np.float32)
+        ds_1 = get_inp_nc()
+        ds_2 = manage_ds(ds_1)
+        plt_map_flux_4panel(ds_2)
+        # check_total(ds_2)
+        # ds_nc = write_nc(ds_2)
+        # write_grd(ds_nc, dtype=np.float32)

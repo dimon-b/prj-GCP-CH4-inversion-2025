@@ -37,6 +37,7 @@ class WriteNcComp(_set_case.SetCase):
             pst_csv_files = self.get_csv_files(ddir[1])
             print("List of pst csv files :")
             print(",\n".join(f'\t\t{f}' for f in pst_csv_files))
+            exit()
 
             # ---
             for apr_csv, pst_csv in zip(apr_csv_files, pst_csv_files):

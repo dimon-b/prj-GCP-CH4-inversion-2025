@@ -221,10 +221,10 @@ class WriteNcFlux(_set_case.SetCase):
             file_out = ''
             if 'CYC' in dir_:
                 file_out = dir_ + 'nc_out/' + '/MIROC4-ACTM_totflux_GMB_SURF_OH_Transcom.nc'
-                file_out = dir_ + 'nc_out/' + '/MIROC4-ACTM_totflux_GMB_SURF_OH_Transcom_soil.nc'
+                # file_out = dir_ + 'nc_out/' + '/MIROC4-ACTM_totflux_GMB_SURF_OH_Transcom_soil.nc'
             elif 'INCA' in dir_:
                 file_out = dir_ + 'nc_out/' + '/MIROC4-ACTM_totflux_GMB_SURF_OH_INCA.nc'
-                file_out = dir_ + 'nc_out/' + '/MIROC4-ACTM_totflux_GMB_SURF_OH_INCA_soil.nc'
+                # file_out = dir_ + 'nc_out/' + '/MIROC4-ACTM_totflux_GMB_SURF_OH_INCA_soil.nc'
 
             nc = netCDF4.Dataset(file_out, 'w', format='NETCDF4')
             nc.description = 'Net prior and posteor CH4 emissions resulted from the surface based inversion for GCP-CH4, 2025. The results are produced at JAMSTEC, Japan. For details please contact at prabir@jamstec.go.jp and d.belikov@chiba-u.jp.'
@@ -257,10 +257,10 @@ class WriteNcFlux(_set_case.SetCase):
             lat[:] = self.d1_lats
             lon[:] = self.d1_lons
             cellarea[:] = self.garia_d1
-            # fch4_prior[:, :, :] = ds_1['monthly_fch4_total_prior_soil0'].values
-            # fch4_post[:, :, :] = ds_1['monthly_fch4_total_post_soil0'].values
-            fch4_prior[:, :, :] = ds_1['monthly_fch4_total_prior'].values
-            fch4_post[:, :, :] = ds_1['monthly_fch4_total_post'].values
+            fch4_prior[:, :, :] = ds_1['monthly_fch4_total_prior_soil0'].values
+            fch4_post[:, :, :] = ds_1['monthly_fch4_total_post_soil0'].values
+            # fch4_prior[:, :, :] = ds_1['monthly_fch4_total_prior'].values
+            # fch4_post[:, :, :] = ds_1['monthly_fch4_total_post'].values
             # print(ds_1)
             # exit()
 
