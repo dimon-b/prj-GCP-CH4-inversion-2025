@@ -396,79 +396,92 @@ class WriteNcFlux(_set_case.SetCase):
             # cellarea = nc.createVariable('carea', 'f4', ('lat', 'lon'))
             cellarea = nc.createVariable('carea', 'f4', ('lat',))
 
-            fch4_tot_prior = nc.createVariable('fch4_tot_prior', 'f4', ('time', 'lat', 'lon'))
-            fch4_tot_post = nc.createVariable('fch4_tot_post', 'f4', ('time', 'lat', 'lon'))
-            fch4_wet_prior = nc.createVariable('fch4_wet_prior', 'f4', ('time', 'lat', 'lon'))
-            fch4_wet_post = nc.createVariable('fch4_wet_post', 'f4', ('time', 'lat', 'lon'))
-            fch4_bb_prior = nc.createVariable('fch4_bb_prior', 'f4', ('time', 'lat', 'lon'))
-            fch4_bb_post = nc.createVariable('fch4_bb_post', 'f4', ('time', 'lat', 'lon'))
-            fch4_biofuel_prior = nc.createVariable('fch4_biofuel_prior', 'f4', ('time', 'lat', 'lon'))
+            fch4_total_prior = nc.createVariable('fch4_total_prior', 'f4', ('time', 'lat', 'lon'))
+            fch4_total_post = nc.createVariable('fch4_total_post', 'f4', ('time', 'lat', 'lon'))
+
             fch4_biofuel_post = nc.createVariable('fch4_biofuel_post', 'f4', ('time', 'lat', 'lon'))
-            fch4_oilgas_prior = nc.createVariable('fch4_oilgas_prior', 'f4', ('time', 'lat', 'lon'))
-            fch4_oilgas_post = nc.createVariable('fch4_oilgas_post', 'f4', ('time', 'lat', 'lon'))
-            fch4_coal_prior = nc.createVariable('fch4_coal_prior', 'f4', ('time', 'lat', 'lon'))
+            fch4_biofuel_prior = nc.createVariable('fch4_biofuel_prior', 'f4', ('time', 'lat', 'lon'))
+            fch4_biomass_post = nc.createVariable('fch4_biomass_post', 'f4', ('time', 'lat', 'lon'))
+            fch4_biomass_prior = nc.createVariable('fch4_biomass_prior', 'f4', ('time', 'lat', 'lon'))
+            fch4_freshwaters_post = nc.createVariable('fch4_freshwaters_post', 'f4', ('time', 'lat', 'lon'))
+            fch4_freshwaters_prior = nc.createVariable('fch4_freshwaters_prior', 'f4', ('time', 'lat', 'lon'))
             fch4_coal_post = nc.createVariable('fch4_coal_post', 'f4', ('time', 'lat', 'lon'))
-            fch4_agri_prior = nc.createVariable('fch4_agri_prior', 'f4', ('time', 'lat', 'lon'))
-            fch4_agri_post = nc.createVariable('fch4_agri_post', 'f4', ('time', 'lat', 'lon'))
-            fch4_waste_prior = nc.createVariable('fch4_waste_prior', 'f4', ('time', 'lat', 'lon'))
-            fch4_waste_post = nc.createVariable('fch4_waste_post', 'f4', ('time', 'lat', 'lon'))
-            fch4_termite_prior = nc.createVariable('fch4_termite_prior', 'f4', ('time', 'lat', 'lon'))
-            fch4_termite_post = nc.createVariable('fch4_termite_post', 'f4', ('time', 'lat', 'lon'))
-            fch4_geol_prior = nc.createVariable('fch4_geol_prior', 'f4', ('time', 'lat', 'lon'))
-            fch4_geol_post = nc.createVariable('fch4_geol_post', 'f4', ('time', 'lat', 'lon'))
-            fch4_oce_prior = nc.createVariable('fch4_oce_prior', 'f4', ('time', 'lat', 'lon'))
-            fch4_oce_post = nc.createVariable('fch4_oce_post', 'f4', ('time', 'lat', 'lon'))
-            fch4_soils_prior = nc.createVariable('fch4_soils_prior', 'f4', ('time', 'lat', 'lon'))
+            fch4_coal_prior = nc.createVariable('fch4_coal_prior', 'f4', ('time', 'lat', 'lon'))
+            fch4_geological_post = nc.createVariable('fch4_geological_post', 'f4', ('time', 'lat', 'lon'))
+            fch4_geological_prior = nc.createVariable('fch4_geological_prior', 'f4', ('time', 'lat', 'lon'))
+            fch4_livestock_post = nc.createVariable('fch4_livestock_post', 'f4', ('time', 'lat', 'lon'))
+            fch4_livestock_prior = nc.createVariable('fch4_livestock_prior', 'f4', ('time', 'lat', 'lon'))
+            fch4_ocean_post = nc.createVariable('fch4_ocean_post', 'f4', ('time', 'lat', 'lon'))
+            fch4_ocean_prior = nc.createVariable('fch4_ocean_prior', 'f4', ('time', 'lat', 'lon'))
+            fch4_oilgasind_post = nc.createVariable('fch4_oilgasind_post', 'f4', ('time', 'lat', 'lon'))
+            fch4_oilgasind_prior = nc.createVariable('fch4_oilgasind_prior', 'f4', ('time', 'lat', 'lon'))
+            fch4_rice_post = nc.createVariable('fch4_rice_post', 'f4', ('time', 'lat', 'lon'))
+            fch4_rice_prior = nc.createVariable('fch4_rice_prior', 'f4', ('time', 'lat', 'lon'))
             fch4_soils_post = nc.createVariable('fch4_soils_post', 'f4', ('time', 'lat', 'lon'))
+            fch4_soils_prior = nc.createVariable('fch4_soils_prior', 'f4', ('time', 'lat', 'lon'))
+            fch4_termites_post = nc.createVariable('fch4_termites_post', 'f4', ('time', 'lat', 'lon'))
+            fch4_termites_prior = nc.createVariable('fch4_termites_prior', 'f4', ('time', 'lat', 'lon'))
+            fch4_waste_post = nc.createVariable('fch4_waste_post', 'f4', ('time', 'lat', 'lon'))
+            fch4_waste_prior = nc.createVariable('fch4_waste_prior', 'f4', ('time', 'lat', 'lon'))
+            fch4_wetlands_post = nc.createVariable('fch4_wetlands_post', 'f4', ('time', 'lat', 'lon'))
+            fch4_wetlands_prior = nc.createVariable('fch4_wetlands_prior', 'f4', ('time', 'lat', 'lon'))
+
 
             # --- set data
             lat[:] = self.d1_lats
             lon[:] = self.d1_lons
             cellarea[:] = self.garia_d1
 
-            fch4_tot_prior[:, :, :] = ds_1['monthly_fch4_total_prior'].values
-            fch4_tot_post[:, :, :] = ds_1['monthly_fch4_total_post'].values
+            fch4_total_prior[:, :, :] = ds_1['monthly_fch4_total_prior'].values
+            fch4_total_post[:, :, :] = ds_1['monthly_fch4_total_post'].values
 
-            fch4_wet_prior[:, :, :] = ds_1['monthly_fch4_wetlands_prior'].values
-            fch4_wet_post[:, :, :] = ds_1['monthly_fch4_wetlands_post'].values
-            fch4_bb_prior[:, :, :] = ds_1['monthly_fch4_biomass_prior'].values
-            fch4_bb_post[:, :, :] = ds_1['monthly_fch4_biomass_post'].values
-            fch4_biofuel_prior[:, :, :] = ds_1['monthly_fch4_biofuels_prior'].values
             fch4_biofuel_post[:, :, :] = ds_1['monthly_fch4_biofuels_post'].values
-            fch4_oilgas_prior[:, :, :] = ds_1['monthly_fch4_oilgasind_prior'].values
-            fch4_oilgas_post[:, :, :] = ds_1['monthly_fch4_oilgasind_post'].values
-            fch4_coal_prior[:, :, :] = ds_1['monthly_fch4_coal_prior'].values
+            fch4_biofuel_prior[:, :, :] = ds_1['monthly_fch4_biofuels_prior'].values
+            fch4_biomass_post[:, :, :] = ds_1['monthly_fch4_biomass_post'].values
+            fch4_biomass_prior[:, :, :] = ds_1['monthly_fch4_biomass_prior'].values
             fch4_coal_post[:, :, :] = ds_1['monthly_fch4_coal_post'].values
-            fch4_agri_prior[:, :, :] = ds_1['monthly_fch4_livestock_prior'].values
-            fch4_agri_post[:, :, :] = ds_1['monthly_fch4_livestock_post'].values
-            fch4_waste_prior[:, :, :] = ds_1['monthly_fch4_waste_prior'].values
-            fch4_waste_post[:, :, :] = ds_1['monthly_fch4_waste_post'].values
-            fch4_geol_prior[:, :, :] = ds_1['monthly_fch4_geological_prior'].values
-            fch4_geol_post[:, :, :] = ds_1['monthly_fch4_geological_post'].values
-            fch4_termite_prior[:, :, :] = ds_1['monthly_fch4_termites_prior'].values
-            fch4_termite_post[:, :, :] = ds_1['monthly_fch4_termites_post'].values
-            fch4_oce_prior[:, :, :] = ds_1['monthly_fch4_ocean_prior'].values
-            fch4_oce_post[:, :, :] = ds_1['monthly_fch4_ocean_post'].values
-            fch4_soils_prior[:, :, :] = ds_1['monthly_fch4_soils_prior'].values
+            fch4_coal_prior[:, :, :] = ds_1['monthly_fch4_coal_prior'].values
+            fch4_freshwaters_post[:, :, :] = ds_1['monthly_fch4_freshwaters_post'].values
+            fch4_freshwaters_prior[:, :, :] = ds_1['monthly_fch4_freshwaters_prior'].values
+            fch4_geological_post[:, :, :] = ds_1['monthly_fch4_geological_post'].values
+            fch4_geological_prior[:, :, :] = ds_1['monthly_fch4_geological_prior'].values
+            fch4_livestock_post[:, :, :] = ds_1['monthly_fch4_livestock_post'].values
+            fch4_livestock_prior[:, :, :] = ds_1['monthly_fch4_livestock_prior'].values
+            fch4_ocean_post[:, :, :] = ds_1['monthly_fch4_ocean_post'].values
+            fch4_ocean_prior[:, :, :] = ds_1['monthly_fch4_ocean_prior'].values
+            fch4_oilgasind_post[:, :, :] = ds_1['monthly_fch4_oilgasind_post'].values
+            fch4_oilgasind_prior[:, :, :] = ds_1['monthly_fch4_oilgasind_prior'].values
+            fch4_rice_post[:, :, :] = ds_1['monthly_fch4_rice_post'].values
+            fch4_rice_prior[:, :, :] = ds_1['monthly_fch4_rice_prior'].values
             fch4_soils_post[:, :, :] = ds_1['monthly_fch4_soils_post'].values
+            fch4_soils_prior[:, :, :] = ds_1['monthly_fch4_soils_prior'].values
+            fch4_termites_post[:, :, :] = ds_1['monthly_fch4_termites_post'].values
+            fch4_termites_prior[:, :, :] = ds_1['monthly_fch4_termites_prior'].values
+            fch4_waste_post[:, :, :] = ds_1['monthly_fch4_waste_post'].values
+            fch4_waste_prior[:, :, :] = ds_1['monthly_fch4_waste_prior'].values
+            fch4_wetlands_post[:, :, :] = ds_1['monthly_fch4_wetlands_post'].values
+            fch4_wetlands_prior[:, :, :] = ds_1['monthly_fch4_wetlands_prior'].values
 
             # --- date-time
             time[:] = ds_1["time_hours_since_1970"]
 
             # --- units
             cellarea.units = 'm2'
-            flux_vars = [fch4_tot_prior, fch4_tot_post,
-                         fch4_wet_prior, fch4_wet_post,
-                         fch4_bb_prior, fch4_bb_post,
+            flux_vars = [fch4_total_prior, fch4_total_post,
                          fch4_biofuel_prior, fch4_biofuel_post,
-                         fch4_oilgas_prior, fch4_oilgas_post,
+                         fch4_biomass_prior, fch4_biomass_post,
                          fch4_coal_prior, fch4_coal_post,
-                         fch4_agri_prior, fch4_agri_post,
+                         fch4_freshwaters_prior, fch4_freshwaters_post,
+                         fch4_geological_prior, fch4_geological_post,
+                         fch4_livestock_prior, fch4_livestock_post,
+                         fch4_ocean_prior, fch4_ocean_post,
+                         fch4_oilgasind_prior, fch4_oilgasind_post,
+                         fch4_rice_prior, fch4_rice_post,
+                         fch4_soils_prior, fch4_soils_post,
+                         fch4_termites_prior, fch4_termites_post,
                          fch4_waste_prior, fch4_waste_post,
-                         fch4_geol_prior, fch4_geol_post,
-                         fch4_termite_prior, fch4_termite_post,
-                         fch4_oce_prior, fch4_oce_post,
-                         fch4_soils_prior, fch4_soils_post]
+                         fch4_wetlands_prior, fch4_wetlands_post,
+                         ]
 
             for v in flux_vars:
                 v.units = 'g-CH4/m2/month'
@@ -476,18 +489,20 @@ class WriteNcFlux(_set_case.SetCase):
             print('\n SUCCESS writing total flux to >>> ', file_out)
             print('\t Check valid range')
             flux_pairs = {
-                'tot': (fch4_tot_prior, fch4_tot_post),
-                'wet': (fch4_wet_prior, fch4_wet_post),
-                'bb': (fch4_bb_prior, fch4_bb_post),
+                'total': (fch4_total_prior, fch4_total_post),
                 'biofuel': (fch4_biofuel_prior, fch4_biofuel_post),
-                'oilgas': (fch4_oilgas_prior, fch4_oilgas_post),
+                'biomass': (fch4_biomass_prior, fch4_biomass_post),
                 'coal': (fch4_coal_prior, fch4_coal_post),
-                'agri': (fch4_agri_prior, fch4_agri_post),
-                'waste': (fch4_waste_prior, fch4_waste_post),
-                'geol': (fch4_geol_prior, fch4_geol_post),
-                'termite': (fch4_termite_prior, fch4_termite_post),
-                'oce': (fch4_oce_prior, fch4_oce_post),
+                'freshwaters': (fch4_freshwaters_prior, fch4_freshwaters_post),
+                'geological': (fch4_geological_prior, fch4_geological_post),
+                'livestock': (fch4_livestock_prior, fch4_livestock_post),
+                'ocean': (fch4_ocean_prior, fch4_ocean_post),
+                'oilgasind': (fch4_oilgasind_prior, fch4_oilgasind_post),
+                'rice': (fch4_rice_prior, fch4_rice_post),
                 'soils': (fch4_soils_prior, fch4_soils_post),
+                'termite': (fch4_termites_prior, fch4_termites_post),
+                'waste': (fch4_waste_prior, fch4_waste_post),
+                'wetlands': (fch4_wetlands_prior, fch4_wetlands_post),
             }
 
             for prior, post in flux_pairs.values():
