@@ -5,13 +5,11 @@ Project:    Write total fCH4 *.nc for GCP2021 as originally created by Naveen Ne
 @author:    Dmitry Belikov
 """
 import os
-from datetime import datetime
 import netCDF4
 import pandas as pd
 from netCDF4 import date2num
 from pathlib import Path
 
-# import b_sub_flux
 import _set_case
 
 
@@ -24,47 +22,66 @@ class WriteNcComp(_set_case.SetCase):
                 ['../trout_MIROC/CH4_t42l67_INCA_H_260306/', '../trout_MIROC/CH4_t42l67_INCA_H_post_260324/']
                 ]
 
-        # --- run
-        # /S/data01/G5070/y0715/ccode/prj_apack/c_apack/b3_get_Model_hr_GCP.py
+        org_dir = '../submition/receptors/'
 
         # --- run here: txt -> nc
         for ddir in dirs:
             # --- get list of csv file
-            apr_csv_files = self.get_csv_files(ddir[0])
             print('')
-            print("List of apr csv files :")
+            print("\n List of apr csv files :")
+            apr_csv_files = self.get_csv_files(ddir[0])
+            apr_csv_files = [f for f in apr_csv_files if 'station' in f]
             print(",\n".join(f'\t\t{f}' for f in apr_csv_files))
+
+            print("\n List of pst csv files :")
             pst_csv_files = self.get_csv_files(ddir[1])
-            print("List of pst csv files :")
+            pst_csv_files = [f for f in pst_csv_files if 'station' in f]
             print(",\n".join(f'\t\t{f}' for f in pst_csv_files))
-            exit()
+
+            print("\n List of orig csv files :")
+            org_csv_files = self.get_csv_files(org_dir)
+            print(",\n".join(f'\t\t{f}' for f in org_csv_files))
+            # exit()
 
             # ---
-            for apr_csv, pst_csv in zip(apr_csv_files, pst_csv_files):
-                if 'station' in apr_csv:
-                    filename = os.path.basename(str(apr_csv))
-                    cmp_id = filename.split("_")[0]
-                    self.wrt_comp_nc(apr_csv, pst_csv, cmp_id)
+            for apr_csv, pst_csv, org_csv in zip(apr_csv_files, pst_csv_files, org_csv_files):
+                filename = os.path.basename(str(apr_csv))
+                cmp_id = filename.split("_")[0]
+                self.wrt_comp_nc(apr_csv, pst_csv, org_csv, cmp_id)
 
     # ---
-    def wrt_comp_nc(self, apr_csv_, pst_csv_, id_):
+    def wrt_comp_nc(self, apr_csv_, pst_csv_, org_csv_, id_):
 
         # ---
-        def read_comp_txt():
+        def read_comp_csv():
             def get_1file(ifile_: str) -> pd.DataFrame:
-                df = pd.read_csv(ifile_)#, sep=r'\s+', skiprows=0)
+                df = pd.read_csv(ifile_)  # , sep=r'\s+', skiprows=0)
                 return df
 
             ifile = apr_csv_
-            print(f'\t\tRead ifile: {ifile}')
             df_apr = get_1file(ifile)
-            print(df_apr.head())
+            len_apr = len(df_apr)
+            # print(df_apr.head())
 
             ifile = pst_csv_
-            print(f'\t\tRead ifile: {ifile}')
             df_pst = get_1file(ifile)
-            print(df_pst.head())
-            # exit()
+            len_pst = len(df_pst)
+            # print(df_pst.head())
+
+            ifile = org_csv_
+            df_org = get_1file(ifile)
+            len_org = len(df_org)
+            # print(df_org.head())
+
+            # print('\n\tReading csv :', \n\t\t apr_csv_, \n\t\t pst_csv_, \n\t\t org_csv_)
+            print("\t\tReading csv:\n"
+                  f"\t\t  {len_apr} lines from apr: {apr_csv_}\n"
+                  f"\t\t  {len_pst} lines from pat: {pst_csv_}\n"
+                  f"\t\t  {len_org} lines from org: {org_csv_}"
+                  )
+            if len_apr!=len_org or len_pst!=len_org:
+                print('Error! len_apr!=len_org or len_pst!=len_org')
+                exit()
 
             return df_apr, df_pst
 
@@ -100,12 +117,9 @@ class WriteNcComp(_set_case.SetCase):
 
             # --- date-time
             apr['dateTime'] = pd.to_datetime(apr['dateTime'])
-            dd = apr['dateTime'].dt.to_pydatetime()
-            # print(apr)
-            # print(dd)
+            # dd = apr['dateTime'].dt.to_pydatetime()
+            dd = apr['dateTime'].tolist()
             time[:] = date2num(dd, units=time.units, calendar=time.calendar)
-            # print(time[:])
-            # exit()
 
             # --- units
             loss_vars = [comp_prior, comp_post]
@@ -119,7 +133,7 @@ class WriteNcComp(_set_case.SetCase):
         # ===========================================================
         print(f'\n\t\tRun read_comp_txt for: {apr_csv_, pst_csv_, id_}')
         for j1, invc in enumerate(self.invcases[:]):
-            a_conc, p_conc = read_comp_txt()
+            a_conc, p_conc = read_comp_csv()
             write_1nc_comp(a_conc, p_conc)
 
     # ---

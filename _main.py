@@ -14,7 +14,9 @@ import i1_inca_OH
 import c3_obs_files
 import s0_server
 import t0_submit
-import v1_valid_surf
+import v1_valid_3D_conc
+import v2_valid_comparison
+
 
 def main():
     # --- settings
@@ -59,14 +61,16 @@ def main():
     # --- Forward MIROC4-ACTM with posterior
 
     # ---
-    run = 1
+    run = 0
     if run:
         print('\t *-*-* Start Submission *-*-* '); t0_submit.Write2Submit()
 
     # --- validation conc using ground-based obs
-    run = 0
+    run = 1
     if run:
-        print('\t *-*-* Start Validation *-*-* '); v1_valid_surf.ConcValSurf()
+        print('\t *-*-* Start Validation *-*-* '); v1_valid_3D_conc.Valid3dConc()
+        # print('\t *-*-* Start Validation *-*-* '); v2_valid_comparison.ValidComp()
+        # print('\t *-*-* Start Validation *-*-* '); v1_valid_surf.ConcValSurf()
 
     print('\nScript done!')
 
