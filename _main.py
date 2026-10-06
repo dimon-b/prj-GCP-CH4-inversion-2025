@@ -68,8 +68,8 @@ def main():
     # --- validation conc using ground-based obs
     run = 1
     if run:
-        print('\t *-*-* Start Validation *-*-* '); v1_valid_3D_conc.Valid3dConc()
-        # print('\t *-*-* Start Validation *-*-* '); v2_valid_comparison.ValidComp()
+        # print('\t *-*-* Start Validation *-*-* '); v1_valid_3D_conc.Valid3dConc()
+        print('\t *-*-* Start Validation *-*-* '); v2_valid_comparison.ValidComp()
         # print('\t *-*-* Start Validation *-*-* '); v1_valid_surf.ConcValSurf()
 
     print('\nScript done!')
