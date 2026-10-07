@@ -43,8 +43,8 @@ class SetCase():
         # todo
         # self.def_model()
 
-    # --- path
-    # def def_path(self):
+        # --- path
+        # def def_path(self):
         # - inp fluxes
         # self.flx_inp_dir = 'D:/OneDrive - 国立大学法人千葉大学/dbase/fluxes/gcp2025_flux_inp/'
         # self.flx_inp_dir = '/S/data01/G5070/y0715/prj_GCP_v25/fluxes/gcp2025_flux_inp/'
@@ -58,7 +58,7 @@ class SetCase():
         self.flx_apr_grd = self.flx_apr_dir + 'fch4_gcp2025_prior_inv1.grd'
 
         # - post fluxes
-        #self.flx_pst_dir = 'D:/dbase/fluxes/gcp2025_flux_post/'
+        # self.flx_pst_dir = 'D:/dbase/fluxes/gcp2025_flux_post/'
 
         # - inv dirs
         self.inv_dir = '../inv_dir/'
@@ -94,7 +94,6 @@ class SetCase():
 
         self.plt_dir = '../plots/'
 
-
         # - concentration
         self.conc_cases = [('apr_cyc', 'D:/dbase/ACTM/CH4_t42l67_CYC_M_260115/'),
                            ('pst_cyc', 'D:/dbase/ACTM/CH4_t42l67_CYC_M_post_260302/'),
@@ -102,8 +101,8 @@ class SetCase():
                            ('pst_inc', 'D:/dbase/ACTM/CH4_t42l67_INCA_M_post_260311/'),
                            ]
 
-    # ---
-    # def def_grid(self):
+        # ---
+        # def def_grid(self):
         self.d1_lons = np.arange(-180 + 0.5, 180, 1)
         self.d1_nlon = len(self.d1_lons)
         self.d1_lats = np.arange(-90 + 0.5, 90, 1)
@@ -114,6 +113,7 @@ class SetCase():
         angle = np.array([(-89.5 + j * dmdeg) * math.pi / 180.0 for j in range(self.d1_nlat)])
         self.garia_d1 = np.array([math.cos(x) * (dmdeg * r0 * math.pi / 180.0) ** 2 for x in angle])
 
+
 # - add_map_feat
 def add_map_feat(ax, mpl, sites):
     ax.set_extent(mpl[:4], crs=ccrs.PlateCarree())
@@ -121,7 +121,6 @@ def add_map_feat(ax, mpl, sites):
     ax.yaxis.set_label_text('')
     ax.set_xticks(np.arange(round(mpl[0], 0), mpl[1] + 0.001, mpl[4]), crs=ccrs.PlateCarree())
     ax.set_yticks(np.arange(round(mpl[2], 0), mpl[3] + 0.001, mpl[5]), crs=ccrs.PlateCarree())
-
 
     resol = '10m'
     ax.grid(color='silver', linestyle=':', linewidth=0.5)

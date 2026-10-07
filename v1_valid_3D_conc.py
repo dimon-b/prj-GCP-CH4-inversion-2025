@@ -26,7 +26,7 @@ class Valid3dConc(_set_case.SetCase):
         self.check_GR()
 
         # ---
-        # self.check_sites()
+        self.check_sites()
 
     # ===
     def check_sites(self):
@@ -133,8 +133,8 @@ class Valid3dConc(_set_case.SetCase):
         axs[-1].set_xlabel('Time')
 
         plt.tight_layout()
-        # plt.show()
-        plt.savefig(self.plt_dir + 'check_3sites.png', format='png', dpi=600, bbox_inches='tight')
+        plt.savefig(self.plt_dir + 'val1_check_3sites.png', format='png', dpi=600, bbox_inches='tight')
+        plt.show()
 
     # ---
     def check_GR(self):
@@ -250,5 +250,5 @@ class Valid3dConc(_set_case.SetCase):
         ax1.set_xlim(pd.Timestamp(str(self.years[0] ) + '-10-01'),
                      pd.Timestamp(str(self.years[1] ) + '-07-31'))
         plt.tight_layout()
-        # plt.show()
-        plt.savefig(self.plt_dir + 'check_GR.png', format='png', dpi=600, bbox_inches='tight')
+        plt.savefig(self.plt_dir + 'val1_check_GR.png', format='png', dpi=600, bbox_inches='tight')
+        plt.show()

@@ -15,7 +15,8 @@ import c3_obs_files
 import s0_server
 import t0_submit
 import v1_valid_3D_conc
-import v2_valid_comparison
+import v2_valid_hippo
+import v3_valid_surf
 
 
 def main():
@@ -69,8 +70,8 @@ def main():
     run = 1
     if run:
         # print('\t *-*-* Start Validation *-*-* '); v1_valid_3D_conc.Valid3dConc()
-        print('\t *-*-* Start Validation *-*-* '); v2_valid_comparison.ValidComp()
-        # print('\t *-*-* Start Validation *-*-* '); v1_valid_surf.ConcValSurf()
+        print('\t *-*-* Start Validation *-*-* '); v2_valid_hippo.ValidComp()
+        # print('\t *-*-* Start Validation *-*-* '); v3_valid_surf.ConcValSurf()
 
     print('\nScript done!')
 

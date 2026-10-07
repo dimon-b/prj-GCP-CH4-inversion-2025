@@ -5,9 +5,10 @@ Project:    GCP/GMB 2025 project
 @author:    Dmitry Belikov
 """
 import pandas as pd
-import cartopy.crs as ccrs
-import cartopy.feature as cfeature
-from pylab import *
+import os
+import numpy as np
+import xarray as xr
+import matplotlib.pyplot as plt
 
 import _set_case
 
@@ -16,440 +17,341 @@ class ConcValSurf(_set_case.SetCase):
 
     def __init__(self):
         super().__init__()
-        '''Used here dataset prepared by apack project'''
 
-        self.target_cols = ['apr_cyc', 'apr_inc', 'pst_cyc', 'pst_inc']
-        self.target_labs = ['Prior CYC', 'Prior INCA', 'Post CYC', 'Post INCA']
+        # self.conc3d = ['../results2025/CYC/nc_out/MIROC4-ACTM_CH4conc_GMB_SURF_OH_Transcom.nc',
+        #                '../results2025/INCA/nc_out/MIROC4-ACTM_CH4conc_GMB_SURF_OH_INCA.nc']
+        self.conc3d = ['../submition/v2/MIROC4-ACTM_CH4conc_GMB_SURF_OH_Transcom.nc',
+                       '../submition/v2/MIROC4-ACTM_CH4conc_GMB_SURF_OH_INCA.nc']
+        self.df_name = 'model_obs_stats_inv2025.csv'
+        self.o_post_dir = '../../prj_apack/obs/o_post_val/'
+        self.val_sts = self.o_post_dir + '_vall_all.csv'
 
-        # self.target_cols = ['apr_cyc', 'pst_cyc']
-        # self.target_labs = ['Prior CYC', 'Post CYC']
+        run = 0
+        if run:
+            # - prepare results
+            df_res = self.get_model_obs(ch4_factor=1.0)
+            os.makedirs(self.plt_dir, exist_ok=True)
+            df_res.to_csv(os.path.join(self.plt_dir, self.df_name), index=False)
 
-        # self.target_cols = ['apr_inc',  'pst_inc']
-        # self.target_labs = [ 'Prior INC',  'Post INC']
+        # - print and plot results
+        f_inp = os.path.join(self.plt_dir, self.df_name)
 
-        df_j = self.get_4mod_df()
-        # df_j = df_j[df_j['year'] < 2009]
-        print(df_j)
-        df_r = self.get_corr_sd(df_j)
-        # self.prt_table(df_r)
-        self.plt_corr_sd(df_r)
+        try:
+            df_res = pd.read_csv(f_inp)
+            print(df_res)
+            # - drop slope < 0.5
+            df_res = df_res[~(df_res['slp_cyc'] < 0.5)].copy()
+            # - drop HBA and USH
+            df_res = df_res[~df_res['site'].isin(['HBA', 'USH'])].copy()
+            # - drop southern sites with sd_cyc > 20
+            # df_res = df_res[~((df_res['lat'] < 5) & (df_res['sd_cyc'] > 20))].copy()
+            # df_res = df_res[~((df_res['lat'] < 5) & (df_res['slp_inca'] < 0.85))].copy()
+        except pd.errors.EmptyDataError:
+            print('\nNo prepared station results')
+            return
+        self.val3_sites_3panels(df_res)
 
-        self.plot_ts(df_j, 'ALT')
-        self.plot_ts(df_j, 'SPO')
-        self.plot_ts(df_j, 'BHD')
-        self.plot_ts(df_j, 'SMO')
-        self.plot_ts(df_j, 'DEM')
-        self.plot_ts(df_j, 'MNM')
-        self.plot_ts(df_j, 'BRW')
-        # self.plt_site_map(df_r)
+    # - prepare model-observation results
+    def get_model_obs(self, ch4_factor=1.0, level_type='sigma',
+                      ps_factor=1.0, min_months=10 * 12):
 
-        # with pd.option_context('display.max_rows', None):
-        #     print(df_r.sort_values(by='lat', ascending=False))
+        # --- read observations
+        def read_obs(row):
+            f_inp = os.path.join(self.o_post_dir, row['f_name'])
 
-    # --- prt_table
-    def prt_table(self, df_):
+            if not os.path.isfile(f_inp):
+                print('\tNo observation file : ', f_inp)
+                return None
 
-        #
-        print('\t Number of sites concidered = ', len(df_['lat'].sort_values().unique()), ' Total = ', len(df_))
+            # - read NIES surface data
+            if row['type'] == 'nies':
+                df = pd.read_csv(f_inp, sep=',', header=None)
+                if df.shape[1] != 5:
+                    raise ValueError(f'Expected 5 columns in NIES surface file: {f_inp}')
 
-        #
-        with pd.option_context('display.max_rows', None):
-            # print(df_.sort_values(by='site', ascending=True))
-            df2 = df_.sort_values(by='site', ascending=True).reset_index(drop=True).round(2)
-            df2.index = df2.index + 1
-            print(df2)
+                df.columns = ['year', 'month', 'day', 'hour', 'value']
+                df['minute'] = 0
+                df['altitude'] = pd.to_numeric(row['alt'], errors='coerce')
 
-    # --- plt_corr_sd
-    def plt_corr_sd(self, df_):
+            # - read converted ObsPack and WDCGG data
+            else:
+                df = pd.read_csv(f_inp, sep='\t')
 
-        print('\t Number of sites concidered = ', len(df_['lat'].sort_values().unique()),
-              ' Total = ', len(df_))
+            # - clear missing values
+            cols = ['year', 'month', 'day', 'hour', 'minute', 'value', 'altitude']
 
-        fig, axs = plt.subplots(1, 3, figsize=(12, 4))
+            for col in cols:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
 
-        colors = ['lime', 'b', 'r', 'yellow']
-        markers = ['s', 'o', '*', '^']
+            df[cols] = df[cols].replace([np.inf, -np.inf], np.nan)
+            df[cols] = df[cols].mask(df[cols] <= -999)
+            df.loc[df['value'] <= 0, 'value'] = np.nan
 
-        metrics = {
-            'sd': {
-                'cols': [f'sd_{c}' for c in self.target_cols],
-                'ylabel': 'SD of model bias, ppb',
-                'ylim': [0, 70],
-                'title': 'a)',
-                'legend_loc': 'upper left'
-            },
-            'corr': {
-                'cols': [f'corr_{c}' for c in self.target_cols],
-                'ylabel': 'Correlation coefficient',
-                'ylim': [0.5, 1.1],
-                'title': 'b)',
-                'legend_loc': 'lower left'
-            },
-            'slp': {
-                'cols': [f'slp_{c}' for c in self.target_cols],
-                'ylabel': 'Slope',
-                'ylim': [0.5, 1.4],
-                'title': 'c)',
-                'legend_loc': 'lower left'
-            }
-        }
+            # - check time
+            df.loc[~df['hour'].between(0, 23), 'hour'] = np.nan
+            df.loc[~df['minute'].between(0, 59), 'minute'] = np.nan
+            df = df.dropna(subset=['year', 'month', 'day', 'hour', 'minute', 'value']).copy()
+            df['datetime'] = pd.to_datetime(df[['year', 'month', 'day', 'hour', 'minute']], errors='coerce')
+            df = df.dropna(subset=['datetime']).copy()
 
-        # ---------- a) SD ----------
-        ax = axs[0]
-        for col, lab, c, m in zip(metrics['sd']['cols'],
-                                  self.target_labs,
-                                  colors,
-                                  markers):
-            mmn = f" ({df_[col].median().round(2)})"
-            ax.scatter(df_['lat'], df_[col],
-                       color=c, marker=m,
-                       edgecolors='black', linewidths=0.5,
-                       label=lab + mmn)
+            if df.empty:
+                return None
 
-        ax.set_xlabel('Latitude')
-        ax.set_ylabel(metrics['sd']['ylabel'])
-        ax.set_title(metrics['sd']['title'])
-        ax.grid(linestyle=':')
-        ax.set_xlim([-90, 90])
-        ax.set_xticks(np.arange(-90, 90.01, 30))
-        # ax.set_ylim(metrics['sd']['ylim'])
-        ax.legend(loc=metrics['sd']['legend_loc'], fontsize=self.fs - 3)
+            # - monthly observation means, ppb
+            df['month_id'] = df['datetime'].dt.to_period('M')
+            df_m = df.groupby('month_id')[['value', 'altitude']].mean()
+            df_m.rename(columns={'value': 'o_ch4'}, inplace=True)
 
-        # ---------- Bias reduction ----------
-        print('\nBias reduction, %')
-        mmn = [df_[c].median() for c in metrics['sd']['cols']]
-        print(((mmn[0] - mmn[1]) / ((mmn[0] + mmn[1]) / 2) * 100).round(2))
-        # print(((mmn[1] - mmn[3]) / ((mmn[1] + mmn[3]) / 2) * 100).round(2))
+            # - use station altitude where observation altitude is missing
+            alt = pd.to_numeric(row['alt'], errors='coerce')
+            if pd.notna(alt) and np.isfinite(alt) and alt > -999:
+                df_m['altitude'] = df_m['altitude'].fillna(alt)
+            return df_m
 
-        print('\nNumber of values < 30, %')
-        for col in metrics['sd']['cols']:
-            print(round(((df_[col] < 30).sum() / len(df_)) * 100, 2))
+        # --- extract model at station
+        def read_model(ds, row, df_o, col):
+            lat = float(row['lat'])
+            lon = float(row['lon'])
 
-        # ---------- b) Correlation ----------
-        ax = axs[1]
-        for col, lab, c, m in zip(metrics['corr']['cols'],
-                                  self.target_labs,
-                                  colors,
-                                  markers):
-            mmn = f" ({df_[col].median().round(2)})"
-            ax.scatter(df_['lat'], df_[col],
-                       color=c, marker=m,
-                       edgecolors='black', linewidths=0.5,
-                       label=lab + mmn)
+            # - nearest horizontal grid point
+            lat_m = np.asarray(ds['latitude'].values, dtype=float)
+            lon_m = np.asarray(ds['longitude'].values, dtype=float)
+            iy = int(np.abs(lat_m - lat).argmin())
+            ix = int(np.abs((lon_m - lon + 180) % 360 - 180).argmin())
 
-        ax.set_xlabel('Latitude')
-        ax.set_ylabel(metrics['corr']['ylabel'])
-        ax.set_title(metrics['corr']['title'])
-        ax.grid(linestyle=':')
-        ax.set_xlim([-90, 90])
-        ax.set_xticks(np.arange(-90, 90.01, 30))
-        # ax.set_ylim(metrics['corr']['ylim'])
-        ax.legend(loc=metrics['corr']['legend_loc'], fontsize=self.fs - 3)
+            ds_p = ds[['ch4_conc', 'Ps']].isel(latitude=iy, longitude=ix).load()
+            da = ds_p['ch4_conc'].transpose('time', 'level')
 
-        print('\nMin nsmallest(10) correlation')
-        for col in metrics['corr']['cols']:
-            print(df_[col].nsmallest(10).mean().round(2))
+            if set(ds_p['Ps'].dims) != {'time'}:
+                raise ValueError(f"Expected Ps(time) at station; found {ds_p['Ps'].dims}")
 
-        print('\nNumber of values > 0.8, %')
-        for col in metrics['corr']['cols']:
-            print(round(((df_[col] > 0.8).sum() / len(df_)) * 100, 2))
+            # - concentrations in ppb and surface pressure in Pa
+            levels = np.asarray(ds['level'].values, dtype=float)
+            values = np.asarray(da.values, dtype=float) * ch4_factor
+            values[(values <= 0) | ~np.isfinite(values)] = np.nan
 
-        # ---------- c) Slope ----------
-        ax = axs[2]
-        for col, lab, c, m in zip(metrics['slp']['cols'],
-                                  self.target_labs,
-                                  colors,
-                                  markers):
-            mmn = f" ({df_[col].median().round(2)})"
-            ax.scatter(df_['lat'], df_[col],
-                       color=c, marker=m,
-                       edgecolors='black', linewidths=0.5,
-                       label=lab + mmn)
+            ps = np.asarray(ds_p['Ps'].values, dtype=float) * ps_factor
+            ps[(ps <= 0) | ~np.isfinite(ps)] = np.nan
 
-        ax.set_xlabel('Latitude')
-        ax.set_ylabel(metrics['slp']['ylabel'])
-        ax.set_title(metrics['slp']['title'])
-        ax.grid(linestyle=':')
-        ax.set_xlim([-90, 90])
-        ax.set_xticks(np.arange(-90, 90.01, 30))
-        # ax.set_ylim(metrics['slp']['ylim'])
-        ax.legend(loc=metrics['slp']['legend_loc'], fontsize=self.fs - 3)
+            # - monthly model means
+            years = ds_p['time'].dt.year.values
+            months = ds_p['time'].dt.month.values
+            dates = [f'{int(y):04d}-{int(m):02d}' for y, m in zip(years, months)]
+            index = pd.PeriodIndex(dates, freq='M')
 
-        plt.tight_layout()
-        plt.show()
+            df_m = pd.DataFrame(values, index=index, columns=range(len(levels)))
+            df_m = df_m.groupby(level=0).mean()
+            ps_m = pd.Series(ps, index=index).groupby(level=0).mean()
+            result = pd.Series(np.nan, index=df_o.index, name=col, dtype=float)
 
-    def plt_corr_sd_0(self, df_):
+            for month in df_o.index.intersection(df_m.index):
+                alt = df_o.loc[month, 'altitude']
 
-        #
-        print('\t Number of sites concidered = ', len(df_['lat'].sort_values().unique()), ' Total = ', len(df_))
+                if not np.isfinite(alt) or alt <= -999 or alt > 11000:
+                    continue
 
-        # Plot
-        fig, axs = plt.subplots(1, 3, figsize=(12, 4))
+                # - approximate station pressure from standard atmosphere, Pa
+                p_obs = 101325.0 * (1.0 - 2.25577e-5 * alt) ** 5.25588
 
-        # a) Standard Deviation
-        ax = axs[0]
-        mmn = ' (' + str(df_['sd_pri_cyc'].median().round(2)) + ')'
-        ax.scatter(df_['lat'], df_['sd_pri_cyc'], color='lime', marker='s', edgecolors='black', linewidths=0.5,
-                   label='Prior CYC' + mmn)
-        mmn = ' (' + str(df_['sd_pri_iav'].median().round(2)) + ')'
-        ax.scatter(df_['lat'], df_['sd_pri_iav'], color='b', marker='o', edgecolors='black', linewidths=0.5,
-                   label='Prior IAV' + mmn)
-        mmn = ' (' + str(df_['sd_pst_cyc'].median().round(2)) + ')'
-        ax.scatter(df_['lat'], df_['sd_pst_cyc'], color='r', marker='*', edgecolors='black', linewidths=0.5,
-                   label='Post CYC' + mmn)
-        mmn = ' (' + str(df_['sd_pst_iav'].median().round(2)) + ')'
-        ax.scatter(df_['lat'], df_['sd_pst_iav'], color='yellow', marker='^', edgecolors='black', linewidths=0.5,
-                   label='Post IAV' + mmn)
-
-        ax.set_xlabel('Latitude')
-        ax.set_ylabel('SD of model bias, ppb')
-        ax.set_title('a)')
-        ax.grid(linestyle=':')
-        ax.set_xlim([-90, 90])
-        ax.set_xticks(np.arange(-90, 90.01, 30))
-        ax.set_ylim([0, 70])
-        ax.legend(loc="upper left", ncol=1, fontsize=self.fs - 3)
-
-        # - Bias reduction
-        print('\nBias reduction, %')
-        mmn1 = df_['sd_pri_cyc'].median()
-        mmn2 = df_['sd_pri_iav'].median()
-        mmn3 = df_['sd_pst_cyc'].median()
-        mmn4 = df_['sd_pst_iav'].median()
-        print(((mmn1 - mmn3) / ((mmn1 + mmn3) / 2) * 100).round(2))
-        print(((mmn2 - mmn4) / ((mmn2 + mmn4) / 2) * 100).round(2))
-
-        #
-        print('\nNumber of values < 30, %')
-        print(round(((df_["sd_pri_cyc"] < 30).sum() / len(df_)) * 100, 2))
-        print(round(((df_["sd_pri_iav"] < 30).sum() / len(df_)) * 100, 2))
-        print(round(((df_["sd_pst_cyc"] < 30).sum() / len(df_)) * 100, 2))
-        print(round(((df_["sd_pst_iav"] < 30).sum() / len(df_)) * 100, 2))
-
-        # b) Correlation
-        ax = axs[1]
-        mmn = ' (' + str(df_['corr_pri_cyc'].median().round(2)) + ')'
-        ax.scatter(df_['lat'], df_['corr_pri_cyc'], color='lime', marker='s', edgecolors='black', linewidths=0.5,
-                   label='Prior CYC' + mmn)
-        mmn = ' (' + str(df_['corr_pri_iav'].median().round(2)) + ')'
-        ax.scatter(df_['lat'], df_['corr_pri_iav'], color='b', marker='o', edgecolors='black', linewidths=0.5,
-                   label='Prior IAV' + mmn)
-        mmn = ' (' + str(df_['corr_pst_cyc'].median().round(2)) + ')'
-        ax.scatter(df_['lat'], df_['corr_pst_cyc'], color='r', marker='*', edgecolors='black', linewidths=0.5,
-                   label='Post CYC' + mmn)
-        mmn = ' (' + str(df_['corr_pst_iav'].median().round(2)) + ')'
-        ax.scatter(df_['lat'], df_['corr_pst_iav'], color='yellow', marker='^', edgecolors='black', linewidths=0.5,
-                   label='Post IAV' + mmn)
-        ax.set_xlabel('Latitude')
-        ax.set_ylabel('Correlation coefficient')
-        ax.set_title('b)')
-        ax.grid(linestyle=':')
-        ax.set_xlim([-90, 90])
-        ax.set_xticks(np.arange(-90, 90.01, 30))
-        ax.set_ylim([0.5, 1.1])
-        ax.legend(loc="lower left", ncol=1, fontsize=self.fs - 3)
-
-        # - Min corr
-        print('\nMin nsmallest(10) correlation')
-        print(df_['corr_pri_cyc'].nsmallest(10).mean().round(2))
-        print(df_['corr_pri_iav'].nsmallest(10).mean().round(2))
-        print(df_['corr_pst_cyc'].nsmallest(10).mean().round(2))
-        print(df_['corr_pst_iav'].nsmallest(10).mean().round(2))
-
-        # -
-        print('\nNumber of values > 0.8, %')
-        print(round(((df_["corr_pri_cyc"] > 0.8).sum() / len(df_)) * 100, 2))
-        print(round(((df_["corr_pri_iav"] > 0.8).sum() / len(df_)) * 100, 2))
-        print(round(((df_["corr_pst_cyc"] > 0.8).sum() / len(df_)) * 100, 2))
-        print(round(((df_["corr_pst_iav"] > 0.8).sum() / len(df_)) * 100, 2))
-
-        # c) Slope
-        ax = axs[2]
-        mmn = ' (' + str(df_['slp_pri_cyc'].median().round(2)) + ')'
-        ax.scatter(df_['lat'], df_['slp_pri_cyc'], color='lime', marker='s', edgecolors='black', linewidths=0.5,
-                   label='Prior CYC' + mmn)
-        mmn = ' (' + str(df_['slp_pri_iav'].median().round(2)) + ')'
-        ax.scatter(df_['lat'], df_['slp_pri_iav'], color='b', marker='o', edgecolors='black', linewidths=0.5,
-                   label='Prior IAV' + mmn)
-        mmn = ' (' + str(df_['slp_pst_cyc'].median().round(2)) + ')'
-        ax.scatter(df_['lat'], df_['slp_pst_cyc'], color='r', marker='*', edgecolors='black', linewidths=0.5,
-                   label='Post CYC' + mmn)
-        mmn = ' (' + str(df_['slp_pst_iav'].median().round(2)) + ')'
-        ax.scatter(df_['lat'], df_['slp_pst_iav'], color='yellow', marker='^', edgecolors='black', linewidths=0.5,
-                   label='Post IAV' + mmn)
-        ax.set_xlabel('Latitude')
-        ax.set_ylabel('Slope')
-        ax.set_title('c)')
-        ax.grid(linestyle=':')
-        ax.set_xlim([-90, 90])
-        ax.set_xticks(np.arange(-90, 90.01, 30))
-        ax.set_ylim([0.5, 1.4])
-        ax.legend(loc="lower left", ncol=1, fontsize=self.fs - 3)
-
-        plt.tight_layout()
-        plt.show()
-        # plt.savefig(self.cmp_dir + 'F_2' + '.png', format='png', dpi=600, bbox_inches='tight')
-
-    # --- get_corr_sd
-    def get_corr_sd(self, df_):
-        correlation_results = []
-        grouped = df_.groupby(['site', 'lat', 'lon'])
-
-        list_s = []
-        for (site, lat, lon), group in grouped:
-            if site in ['SGP']:
-                continue
-            if lat < 85:
-                lat = lat + 2
-            stats = {'site': site,
-                     'lat': lat,
-                     'lon': lon, }
-            for col in self.target_cols:
-                # Drop rows with NaNs in either column
-                valid = group[['o_ch4', col]].dropna()
-
-                len_o = len(valid['o_ch4'])
-                if (not valid.empty) & (len_o > 12 * 8):
-                    if col == self.target_cols[0]:
-                        # print(site, len_o)
-                        list_s.append(site)
-                    # Pearson correlation
-                    corr = valid['o_ch4'].corr(valid[col])
-                    # Standard deviation of difference
-                    sd_diff = np.std(valid[col] - valid['o_ch4'])
-                    # sd_diff = np.mean(valid[col] - valid['o_ch4'])
-                    slope = valid[col].std() / valid['o_ch4'].std() * corr
+                # - model pressure, Pa
+                if level_type == 'sigma':
+                    p_mod = levels * ps_m.loc[month]
+                elif level_type == 'Pa':
+                    p_mod = levels.copy()
                 else:
-                    corr = np.nan
-                    sd_diff = np.nan
-                    slope = np.nan
+                    p_mod = levels * 100.0
 
-                if (corr > 0.045) & (sd_diff < 100) & (slope > 0.0) & (lat < 990):
-                # if (corr > -0.99) & (sd_diff < 180) & (slope > -0.99) & (lat < 990):
-                    stats[f'corr_{col}'] = corr
-                    stats[f'sd_{col}'] = sd_diff
-                    stats[f'slp_{col}'] = slope
-            correlation_results.append(stats)
+                ch4 = df_m.loc[month].to_numpy(dtype=float)
+                mask = np.isfinite(p_mod) & (p_mod > 0) & np.isfinite(ch4)
 
-        # Create DataFrame from results
-        df_res = pd.DataFrame(correlation_results)
-        df_res.dropna(inplace=True)
-        # print(df_res.sort_values(by='corr_pri_cyc', ascending=False))
-        # print(df_res[(df_res['slp_pst_cyc'] > df_res['slp_pst_iav']) & (df_res['slp_pst_cyc'] < 1)])
+                if not mask.any():
+                    continue
 
-        # Make table
-        filtered = df_[df_['site'].isin(list_s)]
-        df_1 = filtered.groupby('site', as_index=False).first()
-        df_1 = df_1.drop(['year', 'month', 'freq', 'o_ch4'] + self.target_cols, axis=1)
-        df_1.rename(
-            columns={'site': 'Code', 'type': 'Provider', 'project': 'Type', 'lat': 'Latitude', 'lon': 'Longitude',
-                     'alt': 'Altitude'}, inplace=True)
+                p_mod = p_mod[mask]
+                ch4 = ch4[mask]
+                order = np.argsort(p_mod)
+                p_mod = p_mod[order]
+                ch4 = ch4[order]
+
+                # - interpolate in log pressure; use boundary level outside range
+                result.loc[month] = np.interp(np.log(p_obs), np.log(p_mod), ch4)
+            return result
+
+        # --- calculate statistics
+        def get_corr_sd(df_i):
+            stats = {}
+
+            for col in target_cols:
+                obs = df_i['o_ch4']
+                mod = df_i[col]
+
+                stats['sd_' + col] = np.std(mod - obs, ddof=0)
+
+                if obs.std(ddof=1) > 0:
+                    stats['slp_' + col] = obs.cov(mod) / obs.var(ddof=1)
+                    stats['corr_' + col] = obs.corr(mod) if mod.std(ddof=1) > 0 else np.nan
+                else:
+                    stats['slp_' + col] = np.nan
+                    stats['corr_' + col] = np.nan
+
+            return stats
+
+        # ===== =====
+        if len(self.conc3d) != 2:
+            raise ValueError('self.conc3d must contain the CYC and INCA files')
+
+        if level_type not in ['sigma', 'Pa', 'hPa']:
+            raise ValueError("level_type must be 'sigma', 'Pa' or 'hPa'")
+
+        if min_months < 2:
+            raise ValueError('min_months must be at least 2')
+
+        target_cols = ['cyc', 'inca']
+
+        # - read joined
+        df = pd.read_csv(self.val_sts)
+        print('Total selected sites               :: ', len(df))
+
+        # - fixed surface and tower stations
+        df['project'] = df['project'].fillna('')
+        df_st = df[df['project'].str.contains('surface|tower', case=False, regex=True)].copy()
+
+        for col in ['lat', 'lon']:
+            df_st[col] = pd.to_numeric(df_st[col], errors='coerce')
+
+        df_st = df_st[df_st['lat'].between(-90, 90) & df_st['lon'].between(-180, 180)].copy()
+        df_st = df_st.drop_duplicates(subset=['site_id', 'f_name'])
+
+        print('Fixed station records              :: ', len(df_st))
+
+        # - open models
+        datasets = []
+        results = []
+
+        try:
+            for f_inp in self.conc3d:
+                print('\nRead model : ', f_inp)
+                ds = xr.open_dataset(f_inp, engine="h5netcdf")
+                datasets.append(ds)
+
+                rename_map = {'x': 'longitude', 'y': 'latitude', 'plev': 'level'}
+                ds = ds.rename({k: v for k, v in rename_map.items() if k in ds.dims})
+                datasets[-1] = ds
+
+                if set(ds['ch4_conc'].dims) != {'time', 'level', 'latitude', 'longitude'}:
+                    raise ValueError(f"Unexpected ch4_conc dimensions: {ds['ch4_conc'].dims}")
+
+                for coord in ['latitude', 'longitude', 'level']:
+                    if ds[coord].dims != (coord,):
+                        raise ValueError(f'Expected a 1D coordinate: {coord}')
+
+                levels = np.asarray(ds['level'].values, dtype=float)
+
+                if not np.isfinite(levels).all() or (levels <= 0).any():
+                    raise ValueError('Model levels must be finite and positive')
+
+                if level_type == 'sigma' and levels.max() > 1.01:
+                    raise ValueError('Levels exceed 1: check pressure units or hybrid coordinates')
+
+                print('CH4 units : ', ds['ch4_conc'].attrs.get('units', 'not specified'))
+                print('Ps units  : ', ds['Ps'].attrs.get('units', 'not specified'))
+                print('Period    : ', ds['time'].values[0], ds['time'].values[-1])
+
+            # - process stations
+            for j, row in df_st.iterrows():
+                print('\nProcessing : ', j, row['site_id'], row['f_name'])
+                df_o = read_obs(row)
+
+                if df_o is None or df_o.empty:
+                    continue
+
+                df_m = df_o.copy()
+
+                for ds, col in zip(datasets, target_cols):
+                    df_m[col] = read_model(ds, row, df_o, col)
+
+                # - use identical valid months for both models
+                df_m = df_m.replace([np.inf, -np.inf], np.nan)
+                df_m = df_m.dropna(subset=['o_ch4'] + target_cols)
+                print('Common months : ', len(df_m))
+
+                if len(df_m) < min_months:
+                    print('\tSkipped: insufficient common months')
+                    continue
+
+                stats = {'site': row['site_id'], 'lat': row['lat'], 'lon': row['lon'], 'project': row['project'],
+                         'f_name': row['f_name'], 'n_months': len(df_m)}
+                stats.update(get_corr_sd(df_m))
+                results.append(stats)
+
+        finally:
+            for ds in datasets:
+                ds.close()
+
+        # - return prepared results
+        df_res = pd.DataFrame(results)
+
+        if not df_res.empty:
+            df_res = df_res.sort_values(by=['lat', 'site']).reset_index(drop=True)
 
         return df_res
 
-    # --- get_4mod_df
-    def get_4mod_df(self):
-        invc = 'inv1'
-        frms = []
-        first_df = None
-        for i, (mod, dir_) in enumerate(self.conc_cases):
-            print(mod, dir_)
-            path = dir_ + '/_surf_mn_' + invc + '.csv'
-            df_r = pd.read_csv(path)
-            df_r.rename(columns={'m_ch4': mod}, inplace=True)
+    # - print and plot prepared results
+    def val3_sites_3panels(self, df_res):
+        if df_res.empty:
+            print('\nNo station records meet the common-month requirement')
+            return
 
-            if i == 0:
-                # Keep first DataFrame with all columns
-                first_df = df_r
-                # Identify common columns (all except the renamed one)
-                common_cols = [col for col in df_r.columns if col != mod]
-            else:
-                # For subsequent DataFrames, keep only the renamed column
-                frms.append(df_r[[mod]])
+        target_cols = ['cyc', 'inca']
+        target_labs = ['CYC', 'INCA']
+        colors = ['b', 'r']
+        markers = ['o', '*']
 
-        # Concatenate first DataFrame with just the new columns from others
-        df_b = pd.concat([first_df] + frms, axis=1)
+        # - print results
+        print('\nTotal compared station records     :: ', len(df_res))
+        print('Total distinct station IDs         :: ', df_res['site'].nunique())
+        print(df_res.sort_values(by=['lat', 'site']).round(2).to_string(index=False))
 
-        # clean
-        df_b.loc[df_b['o_ch4'] <= -0.0, 'o_ch4'] = np.nan
-        df_b.dropna(inplace=True)
-        print(df_b)
-        return df_b
+        # - print median statistics
+        print('\nMedian statistics')
+        for col, lab in zip(target_cols, target_labs):
+            sd = df_res['sd_' + col].median()
+            corr = df_res['corr_' + col].median()
+            slp = df_res['slp_' + col].median()
+            print(f'{lab:8s} SD = {sd:.2f} ppb, correlation = {corr:.2f}, slope = {slp:.2f}')
 
-    # --- plot_ts
-    def plot_ts(self, df_, site_):
-        # Filter for specific site
-        df_site = df_[df_["site"] == site_].copy()
+        # - plot settings
+        fig, axs = plt.subplots(1, 3, figsize=(12, 4))
+        metrics = ['sd', 'corr', 'slp']
+        labels = ['SD of model bias, ppb', 'Correlation coefficient', 'Slope']
+        titles = ['a)', 'b)', 'c)']
+        locations = ['upper left', 'lower left', 'lower left']
 
-        # Create a datetime column for plotting
-        df_site["date"] = pd.to_datetime(df_site[["year", "month"]].assign(day=1))
+        # - plot statistics
+        for ax, metric, ylabel, title, loc in zip(axs, metrics, labels, titles, locations):
+            for col, lab, color, marker in zip(target_cols, target_labs, colors, markers):
+                name = metric + '_' + col
+                median = df_res[name].median()
+                ax.scatter(df_res['lat'], df_res[name], color=color, marker=marker, s=45, edgecolors='black',
+                           linewidths=0.5, label=f'{lab} ({median:.2f})')
 
-        # Plotting
-        plt.figure(figsize=(10, 6))
-        plt.plot(df_site["date"], df_site["o_ch4"], label="Observed (o_ch4)")
-        plt.plot(df_site["date"], df_site["apr_cyc"], label="Prior (CYC)")
-        plt.plot(df_site["date"], df_site["apr_inc"], label="Prior (AIV)")
-        plt.plot(df_site["date"], df_site["pst_cyc"], label="Posterior (CYC)")
-        plt.plot(df_site["date"], df_site["pst_inc"], label="Posterior (AIV)")
+            ax.set_xlabel('Latitude')
+            ax.set_ylabel(ylabel)
+            ax.set_title(title)
+            ax.set_xlim([-90, 90])
+            ax.set_xticks(np.arange(-90, 91, 30))
+            ax.grid(linestyle=':')
+            ax.legend(loc=loc, fontsize=10)
 
-        plt.title(f"CH₄ Time Series at {site_}")
-        plt.xlabel("Date")
-        plt.ylabel("CH₄ (ppb)")
-        plt.legend()
-        plt.grid(True)
+        axs[0].set_ylim(bottom=0)
+        axs[1].set_ylim([-1.05, 1.05])
+        axs[2].axhline(1.0, color='gray', linestyle='--', linewidth=0.7)
+
+        # - reference figure limits
+        axs[0].set_ylim([0, 90])
+        axs[1].set_ylim([0.4, 1.1])
+        axs[2].set_ylim([0.4, 1.4])
+
         plt.tight_layout()
+        plt.savefig(self.plt_dir + 'val3_sites_3panels.png', format='png', dpi=600, bbox_inches='tight')
         plt.show()
-
-    # --- plt_site_map
-    def plt_site_map(self, df_):
-        # Plotting
-        plt.figure(figsize=(8, 4))
-        prjct = ccrs.PlateCarree()
-        # prjct = ccrs.Robinson()
-        ax = plt.axes(projection=prjct)
-
-        # Plot the sites
-        ax.scatter(df_['lon'], df_['lat'], color='red', edgecolor='b', s=20, marker='o',
-                   transform=ccrs.PlateCarree())
-
-        # Add site labels
-        for i, row in df_.iterrows():
-            site = row['site']
-            xx, yy = 1, 2
-            if site in ['BHD', 'YON', 'AMY', 'SHM', 'BIS', 'WLG']:
-                xx, yy = -12, 1
-            if site in ['MLO', 'UTA', 'RYO', 'LLN', 'VGN', 'EGB', 'LMP', 'JFJ', 'LAU', ]:
-                xx, yy = -5, -7
-            if site in ['ALT', 'HUN', 'MDN', 'MQA']:
-                xx, yy = 1, -5
-            if site not in ['PRS', 'CMN', 'TRN', 'SSL', 'ZSF', 'PUY', 'OPE', 'HEI']:
-                ax.text(row['lon'] + xx, row['lat'] + yy, row['site'], fontsize=self.fs - 7,
-                        transform=ccrs.PlateCarree())
-
-        # self.mpl = [0, 30, 30, 60]
-        ax.set_extent(self.mpl)
-        ax.set_xticks(np.arange(self.mpl[0], self.mpl[1] + 0.01, 60), crs=ccrs.PlateCarree())
-        ax.set_yticks(np.arange(self.mpl[2], self.mpl[3] + 0.01, 30), crs=ccrs.PlateCarree())
-        ax.tick_params(axis='both', labelsize=self.fs - 3)
-        ax.xaxis.set_label_text('')
-        ax.yaxis.set_label_text('')
-        ax.grid(linestyle=':', lw=0.5)
-
-        # # Add gridlines with labeled ticks
-        # gl = ax.gridlines(draw_labels=True, crs=ccrs.PlateCarree(), linestyle=':', linewidth=0.5, color='gray')
-        # gl.xlocator = plt.FixedLocator(np.arange(self.mpl[0], self.mpl[1] + 0.01, 60))
-        # gl.ylocator = plt.FixedLocator(np.arange(self.mpl[2], self.mpl[3] + 0.01, 30))
-        # gl.xlabel_style = {'size': 10}
-        # gl.ylabel_style = {'size': 10}
-        # gl.top_labels = False
-        # gl.right_labels = False
-
-        # Add map features
-        ax.add_feature(cfeature.LAND)
-        ax.add_feature(cfeature.OCEAN)
-        ax.add_feature(cfeature.COASTLINE, edgecolor='grey')
-
-        # plt.tight_layout()
-        # plt.show()
-        plt.savefig(self.cmp_dir + 'F_S4' + '.png', format='png', dpi=1200, bbox_inches='tight')
-        plt.close()
