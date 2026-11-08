@@ -16,7 +16,7 @@ import matplotlib.colors as mcolors
 import _set_case
 
 
-class ValidComp(_set_case.SetCase):
+class CheckHippo(_set_case.SetCase):
 
     def __init__(self):
         super().__init__()
