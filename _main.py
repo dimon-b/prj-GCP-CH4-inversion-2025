@@ -14,9 +14,10 @@ import i1_inca_OH
 import c3_obs_files
 import s0_server
 import t0_submit
-import v1_valid_3D_conc
-import v2_valid_hippo
-import v3_valid_surf
+import v1_check_3sites
+import v4_check_GR
+import v3_check_hippo
+import v2_check_all_surf
 
 
 def main():
@@ -69,9 +70,10 @@ def main():
     # --- validation conc using ground-based obs
     run = 1
     if run:
-        # print('\t *-*-* Start Validation *-*-* '); v1_valid_3D_conc.Valid3dConc()
-        print('\t *-*-* Start Validation *-*-* '); v2_valid_hippo.ValidComp()
-        # print('\t *-*-* Start Validation *-*-* '); v3_valid_surf.ConcValSurf()
+        print('\t *-*-* Start v1_check_3sites *-*-* '); v1_check_3sites.Check3Sites()
+        # print('\t *-*-* Start v2_check_all_surf *-*-* '); v2_check_all_surf.CheckAllSurf()
+        # print('\t *-*-* Start Validation *-*-* '); v3_check_hippo.CheckHippo()
+        # print('\t *-*-* Start v4_check_GR *-*-* '); v4_check_GR.CheckGR()
 
     print('\nScript done!')
 

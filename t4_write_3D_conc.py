@@ -17,16 +17,15 @@ class Write3dConc(_set_case.SetCase):
     def __init__(self):
         super().__init__()
         self.invcases = ['inv1']  # , 'inv7', 'vCao']
-        self.dirs = ['D:/OneDrive - 国立大学法人千葉大学/prj_GCP_v25/trout_MIROC/CH4_t42l67_CYC_M_post_260302/',
-                     'D:/OneDrive - 国立大学法人千葉大学/prj_GCP_v25/trout_MIROC/CH4_t42l67_INCA_M_post_260311/']
+        self.dirs = ['../trout_MIROC/CH4_t42l67_CYC_pst_M_261107/']
 
         # - get nc files for each case (CYC, INCA) and run (apr, post)
         for dir_ in self.dirs:
             self.wrt_3d_conc_nc(dir_)
 
         # - combine files for (CYC, INCA)
-        self.write_1nc_conc(self.dirs[0], 'MIROC4-ACTM_CH4conc_GMB_SURF_OH_Transcom.nc')
-        self.write_1nc_conc(self.dirs[1], 'MIROC4-ACTM_CH4conc_GMB_SURF_OH_INCA.nc')
+        self.write_1nc_conc(self.dirs[0], '../results2025/CYC/nc_out/MIROC4-ACTM_CH4conc_GMB_SURF_OH_Transcom.nc')
+        # self.write_1nc_conc(self.dirs[1], '../results2025/INCA/nc_out/MIROC4-ACTM_CH4conc_GMB_SURF_OH_INCA.nc')
 
     # ===
     def write_1nc_conc(self, dir_, f_out):
@@ -34,12 +33,7 @@ class Write3dConc(_set_case.SetCase):
         ds_ = xr.open_dataset(file_inp, engine="h5netcdf")
         ds = ds_.sel(time=slice(f"{self.years_nc[0]}-01-01", f"{self.years_nc[1]}-12-31"))
 
-        file_out = ''
-        if 'CYC' in dir_:
-            file_out = Path('../results2025/CYC/nc_out/') / f_out
-        elif 'INCA' in dir_:
-            file_out = Path('../results2025/INCA/nc_out/') / f_out
-
+        file_out = f_out
         nc = netCDF4.Dataset(file_out, 'w', format='NETCDF4')
         nc.description = 'Net prior and posteor CH4 emissions resulted from the surface based inversion for GCP-CH4, 2025. The results are produced at JAMSTEC, Japan. For details please contact at prabir@jamstec.go.jp and d.belikov@chiba-u.jp.'
         nc.Institution = 'Japan Agency for Marine-Earth Science and Technology (JAMSTEC) and Chiba University'

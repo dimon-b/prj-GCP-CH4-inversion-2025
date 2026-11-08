@@ -57,10 +57,18 @@ class CnvFluxNc(_set_case.SetCase):
             # - join
             ds_expanded = xr.Dataset({**time_vars, **expanded})
 
-            # - add total and total without soil
-            sum_all = sum([ds_expanded[v] for v in ds_expanded.data_vars])
-            ds_expanded["flux_ch4_prior"] = sum_all
-            ds_expanded["flux_ch4_prior_soil0"] = ds_expanded["flux_ch4_prior"] - ds_expanded["flux_ch4_soils"]
+            # - Select sector fluxes only
+            flux_vars = [v for v in ds_expanded.data_vars if
+                         v.startswith('flux_ch4_') and v not in ['flux_ch4_prior', 'flux_ch4_prior_soil0']]
+            for v in flux_vars:
+                print(v, 'NaN cells:', int(ds_expanded[v].isnull().sum().item()))
+
+            # - Treat masked soil cells as zero uptake before summing
+            ds_expanded['flux_ch4_soils'] = ds_expanded['flux_ch4_soils'].fillna(0.0)
+
+            # - Add total and total without soil
+            ds_expanded['flux_ch4_prior'] = sum(ds_expanded[v] for v in flux_vars)
+            ds_expanded['flux_ch4_prior_soil0'] = ds_expanded['flux_ch4_prior'] - ds_expanded['flux_ch4_soils']
 
             # - Make sure time is datetime
             if not np.issubdtype(ds_expanded.time.dtype, np.datetime64):
@@ -124,7 +132,7 @@ class CnvFluxNc(_set_case.SetCase):
             print(table.round(4))
 
         # - write 'flux_ch4_total' to NetCDF
-        def write_nc(ds_i):
+        def write_nc_0(ds_i):
             ds_ = ds_i.copy()
 
             # - Copy full year 2000 → 1999
@@ -154,6 +162,77 @@ class CnvFluxNc(_set_case.SetCase):
 
             return ds_
 
+        # --- write_nc
+        def write_nc(ds_i):
+            ds_ = ds_i.copy()
+
+            # - Copy full year 2000 to 1999
+            year_1999 = ds_.sel(time=slice('2000-01', '2000-12'))
+            year_1999 = year_1999.assign_coords(time=pd.date_range('1999-01-01', '1999-12-01', freq='MS'))
+
+            # - Copy full year 2024 to 2025
+            year_2025 = ds_.sel(time=slice('2024-01', '2024-12'))
+            year_2025 = year_2025.assign_coords(time=pd.date_range('2025-01-01', '2025-12-01', freq='MS'))
+
+            # - Concatenate with original dataset and sort by time
+            ds_ = xr.concat([year_1999, ds_, year_2025], dim='time').sortby('time')
+            print(f'\nTime coverage after expansion: {ds_.sizes["time"]}')
+
+            # - Remove attributes and inherited encoding
+            ds_.attrs = {}
+            for v in ds_.variables:
+                ds_[v].attrs = {}
+                ds_[v].encoding = {}
+
+            # - Time encoding compatible with NetCDF Fortran
+            encoding = {'time': {'dtype': 'int32', 'units': 'days since 1999-01-01 00:00:00', 'calendar': 'proleptic_gregorian'}}
+
+            # - Save prior flux only
+            ds_['flux_ch4_prior'].fillna(0.0).to_netcdf(self.flx_apr_dir + self.flx_apr_nc, engine='scipy', format='NETCDF3_64BIT', encoding=encoding)
+
+            # - Save all components
+            ds_.fillna(0.0).to_netcdf(self.flx_apr_dir + self.flx_apr_nc_full, engine='scipy', format='NETCDF3_64BIT', encoding=encoding)
+
+            return ds_
+
+        # --- write_nc
+        def write_nc_0(ds_i):
+            from pathlib import Path
+
+            ds_ = ds_i.copy()
+
+            # - Copy full year 2000 to 1999
+            year_1999 = ds_.sel(time=slice('2000-01', '2000-12'))
+            year_1999 = year_1999.assign_coords(time=pd.date_range('1999-01-01', '1999-12-01', freq='MS'))
+
+            # - Copy full year 2024 to 2025
+            year_2025 = ds_.sel(time=slice('2024-01', '2024-12'))
+            year_2025 = year_2025.assign_coords(time=pd.date_range('2025-01-01', '2025-12-01', freq='MS'))
+
+            # - Concatenate and sort
+            ds_ = xr.concat([year_1999, ds_, year_2025], dim='time').sortby('time')
+            print(f'\nTime coverage after expansion: {ds_.sizes["time"]}')
+
+            # - Remove attributes
+            ds_.attrs = {}
+            for v in ds_.data_vars:
+                ds_[v].attrs = {}
+
+            # - Prepare output directory
+            out_dir = Path(self.flx_apr_dir)
+            out_dir.mkdir(parents=True, exist_ok=True)
+            prior_path = out_dir / self.flx_apr_nc
+            full_path = out_dir / self.flx_apr_nc_full
+
+            # - Write NetCDF using h5netcdf
+            print(f'Write prior: {prior_path}')
+            ds_['flux_ch4_prior'].fillna(0.0).to_netcdf(str(prior_path), engine='h5netcdf', mode='w')
+
+            print(f'Write all sectors: {full_path}')
+            ds_.fillna(0.0).to_netcdf(str(full_path), engine='h5netcdf', mode='w')
+
+            return ds_
+
         # - write 'flux_ch4_prior' to grd
         def write_grd(ds_i, dtype=np.float32):
             da = ds_i["flux_ch4_prior"].transpose("time", "lat", "lon")
@@ -170,95 +249,10 @@ class CnvFluxNc(_set_case.SetCase):
                         slab = np.nan_to_num(slab, nan=0.0)
                         f.write(slab.tobytes(order="C"))
 
-        # -
-        def plt_map_flux_4panel(ds):
-            self.sites_uz_map = [('Karakalpakia', (44.78, 56.20)),
-                                 # ('Zhaslyk', (43.97, 57.51)),
-                                 ('Nukus', (42.48, 59.62)),
-                                 ('Chimbay', (42.94, 59.77)),
-                                 ('Muynak', (43.77, 59.02)),
-                                 ('Khiva', (41.38, 60.35)),
-                                 ('Buzauabay', (41.75, 62.47)),
-                                 ('Dzhangeldy', (40.85, 63.34)),
-                                 ('Karakul', (39.53, 63.86)),
-                                 ('Akbaytal', (43.18, 64.28)),
-                                 ('Bukhara', (39.76, 64.48)),
-                                 ('Tamdy', (41.74, 64.63)),
-                                 ('Navoi', (40.13, 65.35)),
-                                 ('Qarshi', (38.86, 65.82)),
-                                 ('Samarkand', (39.65, 66.95)),
-                                 ('Jizzakh', (40.12, 67.83)),
-                                 ('Termez', (37.25, 67.30)),
-                                 # ('Syrdarya', (40.83, 68.67)),
-                                 ('Tashkent', (41.33, 69.30)),
-                                 ('Almalyk', (40.84, 69.60)),
-                                 # ('Dukant', (41.1583, 70.0763)),
-                                 ('Oygaing', (42.17, 70.88)),
-                                 # ('Kokand', (40.5286, 70.9425)),
-                                 ('Fergana', (40.41, 71.80)),
-                                 # ('Namangan', (41.01, 71.72)),
-                                 # ('Andijan', (40.78, 72.34)),
-                                 ]
-            self.mpl_uz = [55.5, 73.5, 37, 46, 2, 2]
-            # self.mpl_uz = [45.5, 73.5, 30, 46, 2, 2]
-
-
-            period = [2010, 2020]
-            vars_plot = ["flux_ch4_livestock",
-                         "flux_ch4_oilgasind",
-                         "flux_ch4_waste",
-                         "flux_ch4_prior"]
-
-            # select period once
-            ds = ds.sel(time=ds.time.dt.year.isin(range(period[0], period[1] + 1)))
-
-            fig = plt.figure(figsize=(12, 8))
-            gs = gridspec.GridSpec(3, 2, height_ratios=[1, 1, 0.08], hspace=0.1, wspace=0.1)
-            axes = [fig.add_subplot(gs[0, 0], projection=ccrs.PlateCarree()),
-                    fig.add_subplot(gs[0, 1], projection=ccrs.PlateCarree()),
-                    fig.add_subplot(gs[1, 0], projection=ccrs.PlateCarree()),
-                    fig.add_subplot(gs[1, 1], projection=ccrs.PlateCarree())]
-            cax = fig.add_subplot(gs[2, :])
-
-            for ax, var in zip(axes, vars_plot):
-                da = ds[var]
-
-                # mean over time
-                da_plot = da.mean("time")
-
-                # --- prepare data ---
-                lon = da_plot["lon"].values
-                lat = da_plot["lat"].values
-                LON, LAT = np.meshgrid(lon, lat)
-                Z = da_plot.values*365.25 * 24 * 3600  # or 365.25 if you want
-
-                # --- levels (FIX scalar) ---
-                vmin = 0.0
-                vmax = 0.04
-
-                # --- plot WITHOUT contourf ---
-                im = ax.pcolormesh(LON, LAT, Z, transform=ccrs.PlateCarree(),
-                                   cmap="gnuplot2_r", vmin=vmin, vmax=vmax, shading="auto")
-
-                ax.set_title(var.replace("flux_ch4_", ""))
-                _set_case.add_map_feat(ax, self.mpl_uz, self.sites_uz_map)
-
-            cbar = plt.colorbar(im, cax=cax, orientation="horizontal")
-            pos = cax.get_position()
-            new_width = pos.width * 0.8
-            dx = (pos.width - new_width) / 2
-            cax.set_position([pos.x0 + dx, pos.y0, new_width, pos.height])
-            cbar.set_label("kg m$^{-2}$ yr$^{-1}$")
-
-            # plt.savefig(self.plt_dir + 'flux_4panel.png', dpi=600, bbox_inches='tight')
-            plt.show()
-            plt.close()
-            ds.close()
-
         # =======================================
         ds_1 = get_inp_nc()
         ds_2 = manage_ds(ds_1)
-        plt_map_flux_4panel(ds_2)
-        # check_total(ds_2)
-        # ds_nc = write_nc(ds_2)
+        check_total(ds_2)
+        ds_nc = write_nc(ds_2)
+        # - no need now
         # write_grd(ds_nc, dtype=np.float32)

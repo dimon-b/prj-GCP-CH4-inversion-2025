@@ -22,8 +22,8 @@ class ObsFilesTxt(_set_case.SetCase):
         print('\t\t', self.flx_inp_dir)
 
         # ---
-        # self.get_obs_files_obspack()
-        self.get_obs_files_wdcgg()
+        self.get_obs_files_obspack()
+        # self.get_obs_files_wdcgg()
 
     # --- get_obs_files_wdcgg
     def get_obs_files_wdcgg(self):

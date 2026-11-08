@@ -4,6 +4,7 @@ Finalized:  26/xx/xx
 Project:    GCP/GMB 2025 project
 @author:    Dmitry Belikov
 """
+import os
 import calendar
 import math
 from pylab import *
@@ -37,25 +38,66 @@ class SetCase():
         # --- const
         self.R = 6371000
 
+        # --- model
+        self.invq = ['Q03', 'Q04', 'Q05', 'Q06', 'Q07']
+        self.invcases = ['inv1']
+        self.unpcases = ['p30', 'p50', 'p99']
+        self.unxcases = ['ctl', 'ux2', 'ux4']
+        self.icase = 's060'
+        self.hcase = 'CYC'
+        # self.hcase = 'INCA'
+
         # --- initiation
-        # self.def_path()
-        # self.def_grid()
+        self.def_path()
+        self.def_grid()
         # todo
         # self.def_model()
 
-        # --- path
-        # def def_path(self):
+    # --- def_path
+    def def_path(self):
+        # ===========================================================
+        # - System-dependent directories
+        if os.name == 'nt':
+            self.flx_inp_dir = 'D:/OneDrive - 国立大学法人千葉大学/prj_GCP_v25/fluxes/gcp2025_flux_inp/'
+            self.flx_apr_dir = 'D:/OneDrive - 国立大学法人千葉大学/prj_GCP_v25/fluxes/gcp2025_flux_prior/'
+            self.inc_OH_dir = 'D:/OneDrive - 国立大学法人千葉大学/dbase/fluxes/gcp2025_OH/'
+            self.obs_dir = 'D:/OneDrive - 国立大学法人千葉大学/prj_apack/obs/'
+            actm_dir = 'D:/dbase/ACTM/'
+        else:
+            self.flx_inp_dir = '/S/data01/G5070/y0715/prj_GCP_v25/fluxes/gcp2025_flux_inp/'
+            self.flx_apr_dir = '/S/data01/G5070/y0715/prj_GCP_v25/fluxes/gcp2025_flux_prior/'
+            self.inc_OH_dir = '/S/data01/G5070/y0715/prj_GCP_v25/fluxes/gcp2025_OH/'
+            self.obs_dir = '/S/data01/G5070/y0715/prj_apack/obs/'
+            actm_dir = '../trout_MIROC/'
+
+
+        # ===========================================================
+        # - validation
+        self.val_model_cases = {'cyc v2': {'file': '../submition/v2/MIROC4-ACTM_CH4conc_GMB_SURF_OH_Transcom.nc',
+                                       'label': 'cyc v2',
+                                       'color': 'b',
+                                       'marker': 'o',
+                                           },
+                            'cyc new': {'file': '../results2025/CYC/nc_out/MIROC4-ACTM_CH4conc_GMB_SURF_OH_Transcom.nc',
+                                        'label': 'cyc new',
+                                        'color': 'r',
+                                        'marker': '*',
+                                        }, }
+        self.val_df_name = 'model_obs_stats_inv2025.csv'
+        self.val_obs_dir = '../validation/o_post_val/'
+        self.val_sts = os.path.join(self.val_obs_dir, '_vall_all.csv')
+        self.val_obs_diff_threshold = 100.0
+
+        # ===========================================================
         # - inp fluxes
-        # self.flx_inp_dir = 'D:/OneDrive - 国立大学法人千葉大学/dbase/fluxes/gcp2025_flux_inp/'
         # self.flx_inp_dir = '/S/data01/G5070/y0715/prj_GCP_v25/fluxes/gcp2025_flux_inp/'
-        self.flx_inp_dir = 'D:/OneDrive - 国立大学法人千葉大学/prj_GCP_v25/fluxes/gcp2025_flux_inp/'
         self.flx_inp_nc = 'GCP_Prior_CH4_fluxes.nc'
 
         # - prior fluxes
-        self.flx_apr_dir = 'D:/OneDrive - 国立大学法人千葉大学/prj_GCP_v25/fluxes/gcp2025_flux_prior/'
-        self.flx_apr_nc = "gcp25_inv1.nc"  # total only to convert to gt3
-        self.flx_apr_nc_full = "gcp25_inv1_full.nc"  # full components
+        self.flx_apr_nc = 'gcp25_inv1.nc'  # total only to convert to gt3
+        self.flx_apr_nc_full = 'gcp25_inv1_full.nc'  # full components
         self.flx_apr_grd = self.flx_apr_dir + 'fch4_gcp2025_prior_inv1.grd'
+        self.inv_apr_grd = self.flx_apr_grd
 
         # - post fluxes
         # self.flx_pst_dir = 'D:/dbase/fluxes/gcp2025_flux_post/'
@@ -63,46 +105,59 @@ class SetCase():
         # - inv dirs
         self.inv_dir = '../inv_dir/'
 
-        # -
-        self.inc_OH_inp_dir = '/S/data01/G5070/y0715/prj_GCP_v25/fluxes/gcp2025_flux_inp/LOSS_FIELDS/OH_INCA/Scaled'
-        self.inc_OH_dir = 'D:/OneDrive - 国立大学法人千葉大学/dbase/fluxes/gcp2025_OH/'
+        # - OH
+        self.inc_OH_inp_dir = self.flx_inp_dir + 'LOSS_FIELDS/OH_INCA/Scaled/'
+        # self.inc_OH_inp_dir = 'D:/dbase/fluxes/gcp2025_flux_inp/LOSS_FIELDS/OH_INCA/Scaled/'
+        # self.inc_OH_inp_dir = '/S/data01/G5070/y0715/prj_GCP_v25/fluxes/gcp2025_flux_inp/LOSS_FIELDS/OH_INCA/Scaled'
 
         # - obs
-        self.obs_dir = 'D:/OneDrive - 国立大学法人千葉大学/prj_apack/obs/'
-        self.wdcgg_dir = self.obs_dir + '/o_orig/WDCGG/'
+        self.obspack_dir = (self.obs_dir + 'o_orig/ObsPack/obspack_ch4_1_GLOBALVIEWplus_v8.1_2026-07-13/data/txt/')
+        self.wdcgg_dir = self.obs_dir + 'o_orig/WDCGG/'
         self.obsout_dir = '../inv_dir/obs/'
         self.sites_f = self.inv_dir + 'obsrvCH4_60sites.txt'
 
-        # - model
-        self.invq = ['Q03', 'Q04', 'Q05', 'Q06', 'Q07']
-        self.invcases = ['inv1']
-        self.unpcases = ['p30', 'p50', 'p99']
-        self.unxcases = ['ctl', 'ux2', 'ux4']
-
         # - inv
-        self.icase = 's060'
-        self.hcase = 'CYC'
-        # self.hcase = 'INCA'
         self.inv_wrk_dir = '../results2025/' + self.hcase + '/'
+        # self.inv_wrk_dir = '../results2025/INCA/'
+        # self.inv_wrk_dir = '../results2025/CYC/'
+        # self.inv_mod_dir = '../trout_MIROC/CH4_t42l67_CYC_M_260115/'
         # self.inv_mod_dir = '../trout_MIROC/CH4_t42l67_INCA_M_260212/'
-        self.inv_mod_dir = '../trout_MIROC/CH4_t42l67_CYC_M_260115/'
+        # self.inv_mod_dir = '../trout_MIROC/CH4_t42l67_INCA_M_260307/'
+        # self.inv_mod_dir = '../trout_MIROC/CH4_t42l67_CYC_M_260115/'
         self.inv_run_dir = self.inv_wrk_dir
         self.inv_lsc_dir = self.inv_run_dir + 'losscorr/'
         self.inv_pst_dir = self.inv_run_dir + 'flux2d/'
         self.flx_pst_dir = self.inv_pst_dir
-        self.flx_ncd_dir = self.inv_wrk_dir + '/nc_out/'
-
+        self.flx_ncd_dir = self.inv_wrk_dir + 'nc_out/'
+        self.inv_ncd_dir = self.flx_ncd_dir
         self.plt_dir = '../plots/'
 
-        # - concentration
-        self.conc_cases = [('apr_cyc', 'D:/dbase/ACTM/CH4_t42l67_CYC_M_260115/'),
-                           ('pst_cyc', 'D:/dbase/ACTM/CH4_t42l67_CYC_M_post_260302/'),
-                           ('apr_inc', 'D:/dbase/ACTM/CH4_t42l67_INCA_M_260307/'),
-                           ('pst_inc', 'D:/dbase/ACTM/CH4_t42l67_INCA_M_post_260311/'),
-                           ]
+        # # - concentration
+        # self.conc_cases = [
+        #     ('apr_cyc', actm_dir + 'CH4_t42l67_CYC_M_260115/'),
+        #     ('pst_cyc', actm_dir + 'CH4_t42l67_CYC_M_post_260302/'),
+        #     ('apr_inc', actm_dir + 'CH4_t42l67_INCA_M_260307/'),
+        #     ('pst_inc', actm_dir + 'CH4_t42l67_INCA_M_post_260311/'),
+        #     ('pri_gcp', actm_dir + 'CH4_t42l67_CYC_JRA3Q_M_260115/'),
+        #     ('pst_gcp', actm_dir + 'CH4_t42l67_CYC_JRA3Q_M_260131_post/')
+        # ]
 
-        # ---
-        # def def_grid(self):
+        # self.conc_cases = [
+        #     ('pri_cyc', 'D:/dbase/ACTM_OH/run_ES4/CH4_t42l67_CYC_prior_M_240705/'),
+        #     ('pri_iav', 'D:/dbase/ACTM_OH/run_ES4/CH4_t42l67_IAV_prior_M_240707/'),
+        #     ('pst_cyc', 'D:/dbase/ACTM_OH/run_Oak/GWG_ch4gcp_OH-clm/'),
+        #     ('pst_iav', 'D:/dbase/ACTM_OH/run_Oak/GWG_ch4gcp_OH-iav/')
+        # ]
+
+        # self.set_dirs = [
+        #     ['D:/dbase/ACTM_OH/run_ES4/CH4_t42l67_CYC_prior_M_240705/',
+        #      'D:/dbase/ACTM_OH/run_ES4/CH4_t42l67_IAV_prior_M_240707/'],
+        #     ['D:/dbase/ACTM_OH/run_Oak/GWG_ch4gcp_OH-clm/',
+        #      'D:/dbase/ACTM_OH/run_Oak/GWG_ch4gcp_OH-iav/']
+        # ]
+
+    # --- def_grid
+    def def_grid(self):
         self.d1_lons = np.arange(-180 + 0.5, 180, 1)
         self.d1_nlon = len(self.d1_lons)
         self.d1_lats = np.arange(-90 + 0.5, 90, 1)
@@ -111,68 +166,13 @@ class SetCase():
         dmdeg = 180. / self.d1_nlat
         r0 = 6371.0e3
         angle = np.array([(-89.5 + j * dmdeg) * math.pi / 180.0 for j in range(self.d1_nlat)])
+        # self.garia_d1 = math.cos(angle) * (dmdeg * r0 * math.pi / 180.0) ** 2
         self.garia_d1 = np.array([math.cos(x) * (dmdeg * r0 * math.pi / 180.0) ** 2 for x in angle])
 
-
-# - add_map_feat
-def add_map_feat(ax, mpl, sites):
-    ax.set_extent(mpl[:4], crs=ccrs.PlateCarree())
-    ax.xaxis.set_label_text('')
-    ax.yaxis.set_label_text('')
-    ax.set_xticks(np.arange(round(mpl[0], 0), mpl[1] + 0.001, mpl[4]), crs=ccrs.PlateCarree())
-    ax.set_yticks(np.arange(round(mpl[2], 0), mpl[3] + 0.001, mpl[5]), crs=ccrs.PlateCarree())
-
-    resol = '10m'
-    ax.grid(color='silver', linestyle=':', linewidth=0.5)
-    # ax.add_feature(cf.NaturalEarthFeature(category='cultural', name='admin_0_boundary_lines_land', scale=resol,
-    #                                       edgecolor='grey', facecolor='none', linestyle='--', alpha=0.99, linewidth=0.6,
-    #                                       zorder=1))
-    ax.add_feature(cf.NaturalEarthFeature('physical', 'lakes', scale=resol, edgecolor='navy',
-                                          facecolor='#4292c6',  # '#9ecae1',  # cf.COLORS['water'],
-                                          linewidth=0.75, zorder=2))
-    ax.add_feature(cf.NaturalEarthFeature('physical', 'rivers_lake_centerlines',
-                                          scale=resol, edgecolor='navy', linewidth=0.95, facecolor='none', zorder=1))
-
-    # - Plot sites
-    for name, (lat, lon) in sites:
-        xlat, ylon = -2.2, 0.2
-        if name == 'Karakalpakia':
-            xlat, ylon = 0.2, 0.2
-        if name == 'Nukus':
-            xlat, ylon = -2.0, 0.2
-        if name == 'Chimbay':
-            xlat, ylon = -2.5, 0.2
-        if name == 'Nukus':
-            xlat, ylon = -1.9, -0.2
-        if name == 'Khiva':
-            xlat, ylon = -1.8, 0.2
-        if name == 'Samarkand':
-            xlat, ylon = -2.2, -0.5
-        if name == 'Qarshi':
-            xlat, ylon = -1.8, -0.5
-        if name == 'Karakul':
-            xlat, ylon = -2.2, -0.5
-        if name == 'Navoi':
-            xlat, ylon = -1.7, 0.2
-        if name == 'Dzhangeldy':
-            xlat, ylon = -3.5, -0.2
-        if name == 'Bukhara':
-            xlat, ylon = -2.5, -0.0
-        if name == 'Tamdy':
-            xlat, ylon = 0.2, 0.2
-        if name == 'Fergana':
-            xlat, ylon = -1.0, -0.5
-        if name == 'Jizzakh':
-            xlat, ylon = 0.2, -0.5
-        if name == 'Andijan':
-            xlat, ylon = 0.2, -0.2
-        if name == 'Almalyk':
-            xlat, ylon = 0.2, 0.2
-        if name == 'Namangan':
-            xlat, ylon = -1.2, 0.2
-        if name == 'Kokand':
-            xlat, ylon = -1.5, -0.5
-
-        ax.plot(lon, lat, marker='o', color='r', markersize=2, transform=ccrs.PlateCarree())
-        ax.plot(lon, lat, marker='o', color='w', markersize=1, transform=ccrs.PlateCarree())
-        ax.text(lon + xlat, lat + ylon, name, fontsize=9, color='k', transform=ccrs.PlateCarree())
+        # if not os.path.exists(self.plt_dir):
+        #     os.makedirs(self.plt_dir)
+        # self.all_sts = self.o_post_dir + '_full_all.csv'
+        # self.fin_sts = self.o_post_dir + '_finn_all.csv'
+        # self.msk_dir = '../mask/'
+        # self.iregs = 54
+        # self.tracer = 'ch4'
