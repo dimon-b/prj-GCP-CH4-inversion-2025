@@ -74,10 +74,8 @@ class Check3Sites(_set_case.SetCase):
             ax.plot(df.index, df['o_ch4'], color='k', lw=1.0, ls='--', label='Obs')
 
             for col, case in self.val_model_cases.items():
-                ax.plot(
-                    df.index, df[col], color=case['color'], marker=case['marker'],
-                    markevery=12, markersize=4, lw=1.0, label=case['label'],
-                )
+                ax.plot(df.index, df[col], color=case['color'], marker=case['marker'],
+                        markevery=12, markersize=4, lw=1.0, label=case['label'])
 
             handles, labels = ax.get_legend_handles_labels()
 

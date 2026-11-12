@@ -17,7 +17,7 @@ class Write3dConc(_set_case.SetCase):
     def __init__(self):
         super().__init__()
         self.invcases = ['inv1']  # , 'inv7', 'vCao']
-        self.dirs = ['../trout_MIROC/CH4_t42l67_CYC_pst_M_261107/']
+        self.dirs = ['../trout_MIROC/CH4_t42l67_CYC_pst_M_261112/']#, '../trout_MIROC/CH4_t42l67_INCA_pst_M_261108/']
 
         # - get nc files for each case (CYC, INCA) and run (apr, post)
         for dir_ in self.dirs:

@@ -44,8 +44,8 @@ class SetCase():
         self.unpcases = ['p30', 'p50', 'p99']
         self.unxcases = ['ctl', 'ux2', 'ux4']
         self.icase = 's060'
-        self.hcase = 'CYC'
-        # self.hcase = 'INCA'
+        # self.hcase = 'CYC'
+        self.hcase = 'INCA'
 
         # --- initiation
         self.def_path()
@@ -70,19 +70,20 @@ class SetCase():
             self.obs_dir = '/S/data01/G5070/y0715/prj_apack/obs/'
             actm_dir = '../trout_MIROC/'
 
-
         # ===========================================================
         # - validation
-        self.val_model_cases = {'cyc v2': {'file': '../submition/v2/MIROC4-ACTM_CH4conc_GMB_SURF_OH_Transcom.nc',
-                                       'label': 'cyc v2',
-                                       'color': 'b',
-                                       'marker': 'o',
-                                           },
-                            'cyc new': {'file': '../results2025/CYC/nc_out/MIROC4-ACTM_CH4conc_GMB_SURF_OH_Transcom.nc',
-                                        'label': 'cyc new',
-                                        'color': 'r',
-                                        'marker': '*',
-                                        }, }
+        self.val_model_cases = {'cyc v2':
+                                    {'file': '../submition/v2/MIROC4-ACTM_CH4conc_GMB_SURF_OH_Transcom.nc',
+                                     'label': 'cyc v2',
+                                     'color': 'b',
+                                     'marker': 'o',
+                                     },
+                                'cyc new':
+                                    {'file': '../results2025/CYC/nc_out/MIROC4-ACTM_CH4conc_GMB_SURF_OH_Transcom.nc',
+                                     'label': 'cyc new',
+                                     'color': 'r',
+                                     'marker': '*',
+                                     }, }
         self.val_df_name = 'model_obs_stats_inv2025.csv'
         self.val_obs_dir = '../validation/o_post_val/'
         self.val_sts = os.path.join(self.val_obs_dir, '_vall_all.csv')
@@ -90,7 +91,6 @@ class SetCase():
 
         # ===========================================================
         # - inp fluxes
-        # self.flx_inp_dir = '/S/data01/G5070/y0715/prj_GCP_v25/fluxes/gcp2025_flux_inp/'
         self.flx_inp_nc = 'GCP_Prior_CH4_fluxes.nc'
 
         # - prior fluxes
@@ -99,16 +99,11 @@ class SetCase():
         self.flx_apr_grd = self.flx_apr_dir + 'fch4_gcp2025_prior_inv1.grd'
         self.inv_apr_grd = self.flx_apr_grd
 
-        # - post fluxes
-        # self.flx_pst_dir = 'D:/dbase/fluxes/gcp2025_flux_post/'
-
         # - inv dirs
         self.inv_dir = '../inv_dir/'
 
         # - OH
         self.inc_OH_inp_dir = self.flx_inp_dir + 'LOSS_FIELDS/OH_INCA/Scaled/'
-        # self.inc_OH_inp_dir = 'D:/dbase/fluxes/gcp2025_flux_inp/LOSS_FIELDS/OH_INCA/Scaled/'
-        # self.inc_OH_inp_dir = '/S/data01/G5070/y0715/prj_GCP_v25/fluxes/gcp2025_flux_inp/LOSS_FIELDS/OH_INCA/Scaled'
 
         # - obs
         self.obspack_dir = (self.obs_dir + 'o_orig/ObsPack/obspack_ch4_1_GLOBALVIEWplus_v8.1_2026-07-13/data/txt/')
@@ -118,12 +113,6 @@ class SetCase():
 
         # - inv
         self.inv_wrk_dir = '../results2025/' + self.hcase + '/'
-        # self.inv_wrk_dir = '../results2025/INCA/'
-        # self.inv_wrk_dir = '../results2025/CYC/'
-        # self.inv_mod_dir = '../trout_MIROC/CH4_t42l67_CYC_M_260115/'
-        # self.inv_mod_dir = '../trout_MIROC/CH4_t42l67_INCA_M_260212/'
-        # self.inv_mod_dir = '../trout_MIROC/CH4_t42l67_INCA_M_260307/'
-        # self.inv_mod_dir = '../trout_MIROC/CH4_t42l67_CYC_M_260115/'
         self.inv_run_dir = self.inv_wrk_dir
         self.inv_lsc_dir = self.inv_run_dir + 'losscorr/'
         self.inv_pst_dir = self.inv_run_dir + 'flux2d/'

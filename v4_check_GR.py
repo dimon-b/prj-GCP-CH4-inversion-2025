@@ -20,7 +20,7 @@ class CheckGR(_set_case.SetCase):
     def __init__(self):
         super().__init__()
 
-        self.fig_name  = 'val4_check_GR.png'
+        self.fig_name = 'val4_check_GR.png'
         self.check_GR()
 
     # - compare local Mauna Loa growth rates from the same station inventory
@@ -53,16 +53,16 @@ class CheckGR(_set_case.SetCase):
             residual = df_gr[col] - df_gr['o_ch4']
             bias = residual.mean()
             rmse = np.sqrt((residual ** 2).mean())
+            corr = df_gr[col].corr(df_gr['o_ch4'], method='pearson')
             label = case['label']
 
             print(f'{label}: mean CH4 = {df_yr[col].mean():.2f} ppb, '
                   f'mean growth rate = {df_gr[col].mean():.2f} ppb/yr')
-            print(f'{label}: bias = {bias:.2f} ppb/yr, RMSE = {rmse:.2f} ppb/yr')
+            print(f'{label}: bias = {bias:.2f} ppb/yr, RMSE = {rmse:.2f} ppb/yr, '
+                  f'Pearson r = {corr:.3f}')
 
-            ax.plot(
-                df_gr.index, df_gr[col], color=case['color'], marker=case['marker'],
-                ls='--', lw=1.0, markersize=4, label=label,
-            )
+            ax.plot(df_gr.index, df_gr[col], color=case['color'], marker=case['marker'],
+                    ls='--', lw=1.0, markersize=4, label=label)
 
         x_start = pd.Timestamp(year=self.years[0], month=10, day=1)
         x_end = pd.Timestamp(year=self.years[1], month=7, day=31)

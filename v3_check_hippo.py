@@ -21,16 +21,16 @@ class CheckHippo(_set_case.SetCase):
     def __init__(self):
         super().__init__()
 
-        # - separate profiles
+        # # - separate profiles
         # self.val2_hippo_profiles()
-
-        # - yearly profiles
+        #
+        # # - yearly profiles
         # self.val2_hippo_profiles_yr()
-
-        # - rmse profiles
-        self.val2_hippo_rmse()
-
-        # - scatter
+        #
+        # # - rmse profiles
+        # self.val2_hippo_rmse()
+        #
+        # # - scatter
         # self.val2_hippo_scatter()
         # self.val2_hippo_scatter_post()
 

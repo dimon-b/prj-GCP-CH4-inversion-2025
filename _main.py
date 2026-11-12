@@ -52,8 +52,7 @@ def main():
     # --- Run FORTRAN digi_filt/main_actmstn.f90
     # --- Run FORTRAN f7_write_tdi_obsrvCH4dif.f90
 
-    # --- Run inversion
-    #     codeint54
+    # --- Run inversion codeint54
 
     # ---
     run = 0
@@ -70,9 +69,9 @@ def main():
     # --- validation conc using ground-based obs
     run = 1
     if run:
-        print('\t *-*-* Start v1_check_3sites *-*-* '); v1_check_3sites.Check3Sites()
+        # print('\t *-*-* Start v1_check_3sites *-*-* '); v1_check_3sites.Check3Sites()
         # print('\t *-*-* Start v2_check_all_surf *-*-* '); v2_check_all_surf.CheckAllSurf()
-        # print('\t *-*-* Start Validation *-*-* '); v3_check_hippo.CheckHippo()
+        print('\t *-*-* Start Validation *-*-* '); v3_check_hippo.CheckHippo()
         # print('\t *-*-* Start v4_check_GR *-*-* '); v4_check_GR.CheckGR()
 
     print('\nScript done!')
