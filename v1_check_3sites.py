@@ -84,7 +84,6 @@ class Check3Sites(_set_case.SetCase):
         axes[-1].set_xlabel('Time')
 
         # - save
-        os.makedirs(self.plt_dir, exist_ok=True)
         f_out = os.path.join(self.plt_dir, self.fig_name)
         fig.tight_layout()
         try:

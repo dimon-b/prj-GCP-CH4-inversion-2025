@@ -94,7 +94,6 @@ class LossCorrPlot(_set_case.SetCase):
             ax[-1].set_xlim(self.years[0], self.years[1] + 1)
             ax[-1].set_xlabel('Year')
 
-            os.makedirs(self.plt_dir, exist_ok=True)
             f_out = os.path.join(self.plt_dir, f'chk_GT_{self.hcase}_{unp}_{unx}.png')
             fig.tight_layout()
             fig.savefig(f_out, format='png', dpi=600, bbox_inches='tight')

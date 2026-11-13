@@ -74,7 +74,6 @@ class CheckGR(_set_case.SetCase):
         ax.legend(loc='best', fontsize=10)
 
         # - save
-        os.makedirs(self.plt_dir, exist_ok=True)
         f_out = os.path.join(self.plt_dir, self.fig_name)
         fig.tight_layout()
         try:

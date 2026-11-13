@@ -27,7 +27,6 @@ class CheckAllSurf(_set_case.SetCase):
         if run:
             # - prepare results
             df_res = self.get_model_obs(ch4_factor=1.0)
-            os.makedirs(self.plt_dir, exist_ok=True)
             df_res.to_csv(f_inp, index=False)
         else:
             # - load previously prepared results
@@ -377,7 +376,6 @@ class CheckAllSurf(_set_case.SetCase):
         axs[2].set_ylim([0.4, 1.4])
 
         # - save
-        os.makedirs(self.plt_dir, exist_ok=True)
         f_out = os.path.join(self.plt_dir, self.fig_name)
         fig.tight_layout()
         try:
