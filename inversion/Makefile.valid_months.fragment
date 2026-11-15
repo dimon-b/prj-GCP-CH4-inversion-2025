@@ -1,0 +1,11 @@
+# Append these rules to the original codeint54/Makefile.
+# Preserve the original FFLAGS, LIBS, OBJS and other sources.
+# The user's tdi.f has FREE form syntax despite its .f suffix.
+
+# Explicit dependencies avoid accidentally rebuilding the old read_globalview.f
+# instead of the patched read_globalview.f90.
+tdi.o: tdi.f
+	ifort -free -c $(FFLAGS) tdi.f -o tdi.o
+
+read_globalview.o: read_globalview.f90
+	ifort -free -c $(FFLAGS) read_globalview.f90 -o read_globalview.o

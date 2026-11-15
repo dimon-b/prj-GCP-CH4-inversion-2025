@@ -5,29 +5,34 @@ Project:    GCP/GMB 2025 project
 @author:    Dmitry Belikov
 """
 import os
+import numpy as np
 import calendar
 import math
-from pylab import *
-import cartopy.crs as ccrs
-import cartopy.feature as cf
 
 
 # === set class
 class SetCase():
     def __init__(self):
-        # --- period
-        self.yr_s = 1999
-        self.yr_e = 2025
+        # --- Inversion / F0-F7 period (inclusive: 27 years, 324 months)
+        self.inv_year_s = 1999
+        self.inv_year_e = 2025
+        self.yr_s = self.inv_year_s       # legacy scripts and Fortran config
+        self.yr_e = self.inv_year_e
         self.years = [self.yr_s, self.yr_e]
         self.months = calendar.month_abbr[1:]
         self.nmonth = len(self.months)
-        self.nyear = len(np.arange(self.years[0], self.years[1], 1))
+        self.nyear = self.yr_e - self.yr_s + 1
         self.ntime = self.nyear * self.nmonth
 
-        # --- nc output period
-        self.years_nc = [2000, 2024]
-        # self.years_nc = [1999, 2025]
-        self.nyear_nc = len(np.arange(self.years_nc[0], self.years_nc[1] + 1, 1))
+        # --- Output NetCDF period (NOT the F5/F7 inversion NetCDF)
+        self.nc_out_year_s = 2000
+        self.nc_out_year_e = 2024
+        self.years_nc = [self.nc_out_year_s, self.nc_out_year_e]  # legacy alias
+        self.nyear_nc = self.nc_out_year_e - self.nc_out_year_s + 1
+        self.ntime_nc = self.nyear_nc * self.nmonth
+
+        if self.ntime != 324 or self.ntime_nc != 300:
+            raise ValueError('Expected inversion 324 months and output NetCDF 300 months')
 
         # --- others
         self.fs = 13
@@ -43,9 +48,16 @@ class SetCase():
         self.invcases = ['inv1']
         self.unpcases = ['p30', 'p50', 'p99']
         self.unxcases = ['ctl', 'ux2', 'ux4']
-        self.icase = 's060'
-        # self.hcase = 'CYC'
-        self.hcase = 'INCA'
+        # self.icase = 's060'
+        self.icase = 's057'
+
+        # --- One case for the complete Python workflow
+        self.hcase = os.environ.get('CH4_CASE', 'CYC').strip().upper()
+        if self.hcase not in ['CYC', 'INCA']:
+            raise ValueError('CH4_CASE must be CYC or INCA: ' + self.hcase)
+
+        # --- Fortran sources and executables inside c_gcpv3/
+        self.fort_dir = './fortran/'
 
         # --- initiation
         self.def_path()
@@ -102,6 +114,64 @@ class SetCase():
         # - inv dirs
         self.inv_dir = '../inv_dir/'
 
+        # --- Stage 1: keep the existing station and GF selection unchanged
+        #     Do not reorder the 245 original GF indices.
+        self.gf_file = os.environ.get('CH4_GF_FILE', '')
+        self.actm_prior_dir = os.environ.get('CH4_PRIOR_MODEL_DIR', '')
+        self.actm_post_dir = os.environ.get('CH4_POST_MODEL_DIR', '')
+
+        # --- F2 runtime case input (original model runs)
+        f2_defaults = {
+            'CYC': '../trout_MIROC/CH4_t42l67_CYC_apr_H_261103/',
+            'INCA': '../trout_MIROC/CH4_t42l67_INCA_apr_H_261104/',
+        }
+        self.f2_model_dir = os.environ.get('CH4_F2_MODEL_DIR', f2_defaults[self.hcase])
+        self.f2_output_dir = os.environ.get('CH4_F2_OUTPUT_DIR', self.inv_dir + 'actm/')
+        self.f2_output_prefix = 'miroc_ch4sfc_' + self.hcase.lower() + '_'
+
+        # --- F3: combine ACTM concentrations with station observations
+        self.f3_model_dir = self.f2_output_dir
+        self.f3_obs_dir = self.obsout_dir if hasattr(self, 'obsout_dir') else self.inv_dir + 'obs/'
+        self.f3_output_dir = self.inv_dir + 'joined/'
+        self.f3_input_prefix = self.f2_output_prefix
+        self.f3_output_prefix = 'obsrv_actm_' + self.hcase.lower() + '_'
+        # --- Compiled Fortran executables (same binary for CYC/INCA)
+        #     build_fortran.sh writes to ./fortran/bin/; optional override stays available.
+        self.fort_exe_dir = os.environ.get('CH4_FORTRAN_BIN_DIR', os.path.join(self.fort_dir, 'bin/'))
+        def exe_path(name):
+            return os.path.abspath(os.path.join(self.fort_exe_dir, name))
+        self.exe_f0 = os.environ.get('CH4_EXE_F0', exe_path('f0_fch4_gcp25_nc2gt3_t42'))
+        self.exe_f2 = os.environ.get('CH4_EXE_F2', exe_path('f2_actm_ch4_at_obs_sites'))
+        self.exe_f3 = os.environ.get('CH4_EXE_F3', exe_path('f3_combch4_obs_actm'))
+        self.exe_f4 = os.environ.get('CH4_EXE_F4', exe_path('f4_ch4bu_mon_reg_t42'))
+        self.exe_f5 = os.environ.get('CH4_EXE_F5', exe_path('f5_write_prior_ch4'))
+        self.exe_f6 = os.environ.get('CH4_EXE_F6', exe_path('f6_nakazawa_filter'))
+        self.exe_f7 = os.environ.get('CH4_EXE_F7', exe_path('f7_write_tdi_obsrvCH4dif'))
+
+        # --- F0 converts the common 1999-2025 GCP NetCDF prior to GT3.
+        self.f0_input_dir = self.flx_apr_dir
+        self.f0_output_dir = self.flx_apr_dir
+        self.f0_input_nc = 'gcp25_inv1.nc'
+        self.f0_input_case = 'inv1'
+
+        # --- F4/F5 are common to both OH cases if CH4 prior flux is identical.
+        #     Keep original shared filenames to preserve downstream compatibility.
+        self.f4_flux_file = os.environ.get('CH4_F4_FLUX_FILE', self.flx_apr_dir + 'fch4_gcp25_inv1_t42.gt3')
+        self.f4_mask_file = self.inv_dir + 'mask/mask84_t42.bin'
+        self.f4_output_file = self.inv_dir + 'uncert/ch4bu_reg54.dat'
+        self.f5_input_file = self.f4_output_file
+        self.f5_output_prefix = self.inv_dir + 'sourceprior/sourcepriorch4_p'
+
+        # --- F6 Nakazawa digital filter: retain legacy fixed 1999-2025 period.
+        self.f6_input_file = self.f3_output_dir + 'obsrv_actm_' + self.hcase.lower() + '_ch4dy.grd'
+        self.f6_output_file = self.inv_dir + 'ch4obs_actm_' + self.hcase.lower() + '_fits.bin'
+
+        # --- F7: case-specific outputs avoid overwriting CYC with INCA.
+        self.f7_input_file = self.f6_output_file
+        self.f7_output_summary = self.inv_dir + 'obsrvCH4_2025_' + self.hcase.lower() + '.txt'
+        self.f7_output_prior = self.inv_dir + 'prior_data_' + self.hcase.lower() + '.dif'
+        self.f7_output_nc_prefix = self.inv_dir + 'obsrvCH4_' + self.hcase.lower() + '_9925'
+
         # - OH
         self.inc_OH_inp_dir = self.flx_inp_dir + 'LOSS_FIELDS/OH_INCA/Scaled/'
 
@@ -114,12 +184,30 @@ class SetCase():
         # - inv
         self.inv_wrk_dir = '../results2025/' + self.hcase + '/'
         self.inv_run_dir = self.inv_wrk_dir
+
+        # --- Bayesian inversion Python code and control template
+        #     The original tdi_ch4 executable is not modified or included in this package.
+        #     Copy/link it to ./inversion/tdi_ch4 or set CH4_EXE_INV.
+        self.inv_code_dir = os.environ.get('CH4_INV_CODE_DIR', './inversion/')
+        self.inv_control_template = os.environ.get('CH4_INV_CONTROL', os.path.join(self.inv_code_dir, 'control.example'))
+        self.exe_inv = os.environ.get('CH4_EXE_INV', os.path.join(self.inv_code_dir, 'tdi_ch4'))
         self.inv_lsc_dir = self.inv_run_dir + 'losscorr/'
         self.inv_pst_dir = self.inv_run_dir + 'flux2d/'
         self.flx_pst_dir = self.inv_pst_dir
         self.flx_ncd_dir = self.inv_wrk_dir + 'nc_out/'
         self.inv_ncd_dir = self.flx_ncd_dir
         self.plt_dir = '../plots/'
+
+        # --- Paths for code that expects these attributes
+        #     Explicitly supplied model directories only.
+        self.inv_mod_dir = self.actm_prior_dir
+
+        # --- Do not activate case-dependent validation comparisons implicitly.
+        self.post_model_conc = (
+            '../results2025/CYC/nc_out/MIROC4-ACTM_CH4conc_GMB_SURF_OH_Transcom.nc'
+            if self.hcase == 'CYC' else
+            '../results2025/INCA/nc_out/MIROC4-ACTM_CH4conc_GMB_SURF_OH_INCA.nc'
+        )
 
         # # - concentration
         # self.conc_cases = [

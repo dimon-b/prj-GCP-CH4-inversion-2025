@@ -1,0 +1,32 @@
+ &control
+title = 'Run of CH4 Interannual inversion at RIGC'
+sourcef  = 'sourcepriortdi.nc'
+datflist = '/S/data01/G5070/y0715/prj_GCP_v25/inv_dir/obsrvCH4_60sites.txt'
+datf     = 'obsrvCH4_9925.nc'
+srccorf  = 'files4run/spatial-srccor'
+outputf  = 'files4run/global-output'
+groupf   = 'files4run/spatial-groups-tdi'
+constf   = 'files4run/spatial-consts-none'
+recipef  = 'files4run/new-recipes'
+greenf   = '/S/data01/G5070/y0715/prj_GCP_v25/inv_dir/gmats/'
+dumpgroups = f
+tc3steady = .false.
+tc3tdi = .true.
+pseudodata = .false.
+nlandreg = 54
+npresub = 5
+firstsrc = 1999
+lastsrc = 2025
+firstdat = 1999
+lastdat = 2025
+dumpgreens = .false.
+dumpmats = .false.
+! matdump disabled: full covariance (vardump) is not saved
+doinfluence=f
+concheck = f
+dosvd = t
+doref=f
+numsvdvecs=0
+dodiff= f
+srcscale = 1.0
+datscale= 1.0 /
